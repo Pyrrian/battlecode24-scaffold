@@ -14,6 +14,8 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Random;
 
+import static SimpleFlagCaptureRobot.Role.*;
+
 /**
  * RobotPlayer is the class that describes your main robot strategy.
  * The run() method inside this class is like your main function: this is what we'll call once your robot
@@ -75,12 +77,13 @@ public strictfp class RobotPlayer {
         // You can also use indicators to save debug notes in replays.
         rc.setIndicatorString("Hello world!");
 
+        turnCount += 1;
         while (true) {
             // This code runs during the entire lifespan of the robot, which is why it is in an infinite
             // loop. If we ever leave this loop and return from run(), the robot dies! At the end of the
             // loop, we call Clock.yield(), signifying that we've done everything we want to do.
 
-            turnCount += 1;  // We have now been alive for one more turn!
+            ;  // We have now been alive for one more turn!
 
             // Try/catch blocks stop unhandled exceptions, which cause your robot to explode.
             try {
@@ -93,71 +96,30 @@ public strictfp class RobotPlayer {
                     if (rc.canSpawn(randomLoc)) rc.spawn(randomLoc);
                 }
                 else{
-                    if (rc.canPickupFlag(rc.getLocation())){
-                        rc.pickupFlag(rc.getLocation());
-                        rc.setIndicatorString("Holding a flag!");
-                    }
-                    // If we are holding an enemy flag, singularly focus on moving towards
-                    // an ally spawn zone to capture it! We use the check roundNum >= SETUP_ROUNDS
-                    // to make sure setup phase has ended.
-                    if (rc.hasFlag() && rc.getRoundNum() >= GameConstants.SETUP_ROUNDS){
-                        MapLocation[] spawnLocs = rc.getAllySpawnLocations();
-                        MapLocation firstLoc = spawnLocs[0];
-                        Direction dir = rc.getLocation().directionTo(firstLoc);
-                        if (rc.canMove(dir)) rc.move(dir);
-                   }
-                    FlagInfo[] flagInfos = rc.senseNearbyFlags(20, rc.getTeam().opponent());
-                    if(flagInfos.length != 0) {
-                        //Move towards enemy flag
-                        for(FlagInfo flag : flagInfos) {
-                            if(flag.isPickedUp()) {
-                              continue;
-                            }
-                          Direction dir = rc.getLocation().directionTo(flag.getLocation());
-                          moveTowardsGoal(rc, dir, "Sensed flag, going there!");
-                        }
-                    }
 
-                    if(rc.isMovementReady()) {
-                        MapLocation[] broadcastFlags = rc.senseBroadcastFlagLocations();
-                        if(broadcastFlags.length != 0) {
-                            Direction dir = rc.getLocation()
-                                              .directionTo(broadcastFlags[0]);
-                          moveTowardsGoal(rc, dir, "Sensed Broadcast flag, going there!");
-                        }
-                    }
-                    int height = rc.getMapHeight();
-                    int width = rc.getMapWidth();
+                  Role role = determineRole(rc);
 
-                    MapLocation[] loc = rc.getAllySpawnLocations();
-                    MapLocation closest = loc[0];
-                    int maxDistance = Integer.MAX_VALUE;
-                    for(MapLocation l : loc) {
-                        if(l.distanceSquaredTo(rc.getLocation())< maxDistance) {
-                            maxDistance = l.distanceSquaredTo(rc.getLocation());
-                            closest = l;
-                        }
-                    }
-                    Direction dir = rc.getLocation()
-                                      .directionTo(closest).opposite();
-                   moveTowardsGoal(rc, dir, "Moving away from spawnlocation");
+                  switch (role) {
+                    case SEEKER: flagSeekerLogic(rc);
+                    case BATTLE: battleBotLogic(rc);
+                    case GATHERER: gatherBotLogic(rc);
+                  }
 
+                  // Move and attack randomly if no objective.
+                  Direction dir = directions[rng.nextInt(directions.length)];
+                  MapLocation nextLoc = rc.getLocation().add(dir);
+                  moveTowardsGoal(rc, dir, "Moving random direction");
+                  if (rc.canAttack(nextLoc)){
+                      rc.attack(nextLoc);
+                      System.out.println("Take that! Damaged an enemy that was in our way!");
+                  }
 
-                    // Move and attack randomly if no objective.
-                    dir = directions[rng.nextInt(directions.length)];
-                    MapLocation nextLoc = rc.getLocation().add(dir);
-                    moveTowardsGoal(rc, dir, "Moving random direction");
-                    if (rc.canAttack(nextLoc)){
-                        rc.attack(nextLoc);
-                        System.out.println("Take that! Damaged an enemy that was in our way!");
-                    }
-
-                    // Rarely attempt placing traps behind the robot.
-                    MapLocation prevLoc = rc.getLocation().subtract(dir);
-                    if (rc.canBuild(TrapType.EXPLOSIVE, prevLoc) && rng.nextInt() % 37 == 1)
-                        rc.build(TrapType.EXPLOSIVE, prevLoc);
-                    // We can also move our code into different methods or classes to better organize it!
-                    updateEnemyRobots(rc);
+                  // Rarely attempt placing traps behind the robot.
+                  MapLocation prevLoc = rc.getLocation().subtract(dir);
+                  if (rc.canBuild(TrapType.EXPLOSIVE, prevLoc) && rng.nextInt() % 37 == 1)
+                      rc.build(TrapType.EXPLOSIVE, prevLoc);
+                  // We can also move our code into different methods or classes to better organize it!
+                  updateEnemyRobots(rc);
                 }
 
             } catch (GameActionException e) {
@@ -184,31 +146,194 @@ public strictfp class RobotPlayer {
         // Your code should never reach here (unless it's intentional)! Self-destruction imminent...
     }
 
+    private static Role determineRole(RobotController rc) throws GameActionException {
+      // Determine roll counts based on turn count
+      // Write role assignments to shared memory. And use shared memory to determine available roles.
+
+      int currentGathers = rc.readSharedArray(GATHERER.getIndex());
+      int currentBattle = rc.readSharedArray(BATTLE.getIndex());
+      int currentSeekers = rc.readSharedArray(SEEKER.getIndex());
+
+      if(turnCount <= 200) {
+        //Mostly gather
+        int gatherers = 50;
+        return setRole(rc, GATHERER);
+      }
+      else if(turnCount <= 400) {
+        // midgame roles
+        int gatherers = 20;
+        int seekers = 20;
+        int battle = 10;
+
+        if (currentGathers < gatherers) {
+          return setRole(rc, GATHERER);
+        }
+        else if(currentSeekers < seekers) {
+          return setRole(rc, SEEKER);
+        }
+        return setRole(rc, BATTLE);
+      }
+      else {
+        // endgame roles
+        int seekers = 25;
+        int battle = 25;
+        if(currentSeekers < seekers) {
+          return setRole(rc, SEEKER);
+        }
+        return setRole(rc, BATTLE);
+      }
+    }
+
+    private static Role setRole(RobotController rc, Role role) throws GameActionException {
+      int currentBots = rc.readSharedArray(role.getIndex()) + 1;
+      rc.writeSharedArray(role.getIndex(), currentBots);
+      return role;
+    }
+
     private static void flagSeekerLogic(RobotController rc) {
       // Seek flag and switch to carrier or protector after capture.
+      while (true) {
+        try {
+          if (rc.canPickupFlag(rc.getLocation())) {
+            rc.pickupFlag(rc.getLocation());
+            rc.setIndicatorString("Holding a flag!");
+          }
+          // If we are holding an enemy flag, singularly focus on moving towards
+          // an ally spawn zone to capture it! We use the check roundNum >= SETUP_ROUNDS
+          // to make sure setup phase has ended.
+          if (rc.hasFlag() && rc.getRoundNum() >= GameConstants.SETUP_ROUNDS) {
+            MapLocation[] spawnLocs = rc.getAllySpawnLocations();
+            MapLocation firstLoc = spawnLocs[0];
+            Direction dir = rc.getLocation()
+                              .directionTo(firstLoc);
+            if (rc.canMove(dir)) rc.move(dir);
+          }
+          FlagInfo[] flagInfos = rc.senseNearbyFlags(20, rc.getTeam()
+                                                           .opponent());
+          if (flagInfos.length != 0) {
+            //Move towards enemy flag
+            for (FlagInfo flag : flagInfos) {
+              if (flag.isPickedUp()) {
+                continue;
+              }
+              Direction dir = rc.getLocation()
+                                .directionTo(flag.getLocation());
+              moveTowardsGoal(rc, dir, "Sensed flag, going there!");
+            }
+          }
+
+          if (rc.isMovementReady()) {
+            MapLocation[] broadcastFlags = rc.senseBroadcastFlagLocations();
+            if (broadcastFlags.length != 0) {
+              Direction dir = rc.getLocation()
+                                .directionTo(broadcastFlags[0]);
+              moveTowardsGoal(rc, dir, "Sensed Broadcast flag, going there!");
+            }
+          }
+
+          MapLocation[] loc = rc.getAllySpawnLocations();
+          MapLocation closest = loc[0];
+          int maxDistance = Integer.MAX_VALUE;
+          for (MapLocation l : loc) {
+            if (l.distanceSquaredTo(rc.getLocation()) < maxDistance) {
+              maxDistance = l.distanceSquaredTo(rc.getLocation());
+              closest = l;
+            }
+          }
+          Direction dir = rc.getLocation()
+                            .directionTo(closest)
+                            .opposite();
+          moveTowardsGoal(rc, dir, "Moving away from spawnlocation");
+
+        }catch (Exception e) {
+          System.out.println("GameActionException");
+          e.printStackTrace();
+        }
+        finally {
+          Clock.yield();;
+          turnCount += 1;
+        }
+      }
     }
 
     private static void flagCarrierLogic(RobotController rc) {
-      //TODO
-      // Return home logic
+      while(true) {
+
+        try {
+          //TODO
+          // Return home logic
+        }
+        finally {
+          Clock.yield();
+          turnCount += 1;
+        }
+      }
     }
 
     private static void flagCarrierProtectorLogic(RobotController rc) {
-      //TODO
-      // Stay close to flag carrier, destroy enemy bots near. Fill holes around flag carrier.
+      while(true) {
 
+        try {
+          //TODO
+          // Stay close to flag carrier, destroy enemy bots near. Fill holes around flag carrier.
+        }
+        finally {
+          Clock.yield();
+          turnCount += 1;
+        }
+      }
     }
 
     private static void battleBotLogic(RobotController rc) {
-      //TODO
-      // Attack enemies and set traps?
-      // Search and destroy enemy flag carriers
+      while(true) {
+
+        try {
+          //TODO
+          // Attack enemies and set traps?
+          // Search and destroy enemy flag carriers
+        }
+        finally {
+          Clock.yield();
+          turnCount += 1;
+        }
+      }
     }
 
-    private static void gatherBotLogic(RobotController rc) {
-      //TODO
-      // Temporary role
-      // Gather resources in first 300-400 turns for sure.
+    private static void gatherBotLogic(RobotController rc) throws GameActionException {
+      while(true) {
+
+        try {
+          //TODO
+          // Temporary role
+          // Gather resources in first 300-400 turns for sure.
+          if(turnCount > 200) {
+            int current = rc.readSharedArray(GATHERER.getIndex());
+            rc.writeSharedArray(GATHERER.getIndex(), current -1);
+            return;
+          }
+
+        }
+        catch (Exception e) {
+
+        }
+        finally {
+          Clock.yield();
+          turnCount += 1;
+        }
+      }
+    }
+
+    private static void randomBotLogic(RobotController rc) {
+      while(true) {
+
+        try {
+          // RANDOM
+        }
+        finally {
+          Clock.yield();
+          turnCount += 1;
+        }
+      }
     }
 
 
