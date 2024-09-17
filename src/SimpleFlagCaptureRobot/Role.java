@@ -4,7 +4,9 @@ public enum Role {
 
   GATHERER(1),
   BATTLE(2),
-  SEEKER(3);
+  SEEKER(3),
+  FLAG_CARRIER(4),
+  FLAG_PROTECTOR(5);
 
   private int index;
 

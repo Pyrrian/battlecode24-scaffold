@@ -9,6 +9,7 @@ import battlecode.common.RobotInfo;
 
 import java.util.ArrayList;
 
+import static SimpleFlagCaptureRobot.RobotPlayer.isValidDirection;
 import static SimpleFlagCaptureRobot.RobotPlayer.moveTowardsGoal;
 import static SimpleFlagCaptureRobot.RobotPlayer.turnCount;
 import static SimpleFlagCaptureRobot.Role.GATHERER;
@@ -106,10 +107,7 @@ public class GatherService {
         }
     }
 
-    private static boolean isValidDirection(RobotController rc, Direction direction) throws GameActionException {
-        RobotInfo robot = rc.senseRobotAtLocation(rc.getLocation().add(direction));
-        return rc.senseMapInfo(rc.getLocation().add(direction)).isPassable() && robot == null;
-    }
+
 
 //    private static Direction directionToAllySpawnLocation(RobotController rc) {
 //        MapLocation[] loc = rc.getAllySpawnLocations();

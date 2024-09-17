@@ -2,23 +2,20 @@ package SimpleFlagCaptureRobot;
 
 import battlecode.common.Clock;
 import battlecode.common.Direction;
-import battlecode.common.FlagInfo;
 import battlecode.common.GameActionException;
-import battlecode.common.GameConstants;
+import battlecode.common.MapInfo;
 import battlecode.common.MapLocation;
 import battlecode.common.RobotController;
 import battlecode.common.RobotInfo;
-import battlecode.common.TrapType;
 
-import java.util.Arrays;
-import java.util.HashMap;
 import java.util.Random;
 
 import static SimpleFlagCaptureRobot.BattleService.battleBotLogic;
 import static SimpleFlagCaptureRobot.GatherService.gatherBotLogic;
-import static SimpleFlagCaptureRobot.Role.*;
 import static SimpleFlagCaptureRobot.RoleService.determineRole;
 import static SimpleFlagCaptureRobot.SeekerService.flagSeekerLogic;
+import static battlecode.common.GameConstants.ATTACK_RADIUS_SQUARED;
+import static battlecode.common.GameConstants.VISION_RADIUS_SQUARED;
 
 /**
  * RobotPlayer is the class that describes your main robot strategy.
@@ -33,6 +30,10 @@ public strictfp class RobotPlayer {
      * these variables are static, in Battlecode they aren't actually shared between your robots.
      */
     static int turnCount = 0;
+
+    static MapLocation lastLocation;
+
+    static Direction lastDirection;
 
     /**
      * A random number generator.
@@ -64,13 +65,6 @@ public strictfp class RobotPlayer {
     @SuppressWarnings("unused")
     public static void run(RobotController rc) throws GameActionException {
 
-        // Hello world! Standard output is very useful for debugging.
-        // Everything you say here will be directly viewable in your terminal when you run a match!
-        System.out.println("I'm alive");
-
-        // You can also use indicators to save debug notes in replays.
-        rc.setIndicatorString("Hello world!");
-
         turnCount += 1;
         while (true) {
             // This code runs during the entire lifespan of the robot, which is why it is in an infinite
@@ -78,42 +72,21 @@ public strictfp class RobotPlayer {
             // loop, we call Clock.yield(), signifying that we've done everything we want to do.
 
             ;  // We have now been alive for one more turn!
-
             // Try/catch blocks stop unhandled exceptions, which cause your robot to explode.
             try {
                 // Make sure you spawn your robot in before you attempt to take any actions!
                 // Robots not spawned in do not have vision of any tiles and cannot perform any actions.
-                if (!rc.isSpawned()){
-                    MapLocation[] spawnLocs = rc.getAllySpawnLocations();
-                    // Pick a random spawn location to attempt spawning in.
-                    MapLocation randomLoc = spawnLocs[rng.nextInt(spawnLocs.length)];
-                    if (rc.canSpawn(randomLoc)) rc.spawn(randomLoc);
-                }
-                else{
+                if(!spawnRobotIfNeeded(rc)) {
 
                   Role role = determineRole(rc);
-
                   switch (role) {
-                    case SEEKER: flagSeekerLogic(rc);
-                    case BATTLE: battleBotLogic(rc);
-                    case GATHERER: gatherBotLogic(rc);
+                    case SEEKER:
+                      flagSeekerLogic(rc);
+                    case BATTLE:
+                      battleBotLogic(rc);
+                    case GATHERER:
+                      gatherBotLogic(rc);
                   }
-
-                  // Move and attack randomly if no objective.
-                  Direction dir = directions[rng.nextInt(directions.length)];
-                  MapLocation nextLoc = rc.getLocation().add(dir);
-                  moveTowardsGoal(rc, dir, "Moving random direction");
-                  if (rc.canAttack(nextLoc)){
-                      rc.attack(nextLoc);
-                      System.out.println("Take that! Damaged an enemy that was in our way!");
-                  }
-
-                  // Rarely attempt placing traps behind the robot.
-                  MapLocation prevLoc = rc.getLocation().subtract(dir);
-                  if (rc.canBuild(TrapType.EXPLOSIVE, prevLoc) && rng.nextInt() % 37 == 1)
-                      rc.build(TrapType.EXPLOSIVE, prevLoc);
-                  // We can also move our code into different methods or classes to better organize it!
-                  updateEnemyRobots(rc);
                 }
 
             } catch (GameActionException e) {
@@ -140,42 +113,107 @@ public strictfp class RobotPlayer {
         // Your code should never reach here (unless it's intentional)! Self-destruction imminent...
     }
 
-    private static void randomBotLogic(RobotController rc) {
-      while(true) {
-
-        try {
-          // RANDOM
-        }
-        finally {
-          Clock.yield();
-          turnCount += 1;
-        }
+    public static boolean spawnRobotIfNeeded(RobotController rc) throws GameActionException {
+      if (!rc.isSpawned()){
+        MapLocation[] spawnLocs = rc.getAllySpawnLocations();
+        // Pick a random spawn location to attempt spawning in.
+        MapLocation randomLoc = spawnLocs[rng.nextInt(spawnLocs.length)];
+        if (rc.canSpawn(randomLoc)) rc.spawn(randomLoc);
+        return true;
       }
+      return false;
     }
 
+    public static boolean targetAndAttackEnemyBot(RobotController rc) throws GameActionException {
+      RobotInfo[] enemyRobotsInAttackRange = rc.senseNearbyRobots(ATTACK_RADIUS_SQUARED, rc.getTeam().opponent());
+      if(enemyRobotsInAttackRange.length > 0) {
+        MapLocation location = enemyRobotsInAttackRange[0].getLocation();
+        if(rc.canAttack(location)) {
+          rc.attack(location);
+          return true;
+        }
+      }
+      return false;
+    }
 
     public static void moveTowardsGoal(RobotController rc, Direction goal, String log) {
       if(!rc.isMovementReady()) {
         return;
       }
       System.out.println(log);
+
       try {
         if (rc.canMove(goal)) {
           rc.move(goal);
+          lastLocation = rc.getLocation();
+          lastDirection = goal;
           return;
         }
         if (rc.canMove(goal.rotateLeft())) {
           rc.move(goal.rotateLeft());
+          lastLocation = rc.getLocation();
+          lastDirection = goal.rotateLeft();
           return;
         }
         if(rc.canMove(goal.rotateRight())) {
           rc.move(goal.rotateRight());
+          lastLocation = rc.getLocation();
+          lastDirection = goal.rotateRight();
+        }
+        if(rc.canMove(goal.rotateRight().rotateRight())){
+          rc.move(goal.rotateRight().rotateRight());
+          lastLocation = rc.getLocation();
+          lastDirection = goal.rotateRight().rotateRight();
+          return;
+        }
+        if(rc.canMove(goal.rotateLeft().rotateLeft())){
+          rc.move(goal.rotateLeft().rotateLeft());
+          lastLocation = rc.getLocation();
+          lastDirection = goal.rotateLeft().rotateLeft();
+          return;
         }
       }
       catch (GameActionException gae) {
         return;
       }
     }
+
+
+
+    public static void moveTowardsGoal(RobotController rc, MapLocation goal) throws GameActionException {
+      //We cannot see the location
+      //Lets pathfind to the location we can see that is closest to the goal.
+      //We need to find the closest location
+      MapInfo[] allWeCanSee = rc.senseNearbyMapInfos(-1);
+      MapLocation closest = allWeCanSee[0].getMapLocation();
+      int closetDistance = closest.distanceSquaredTo(goal);
+      for(MapInfo info: allWeCanSee) {
+        int dist = info.getMapLocation().distanceSquaredTo(goal);
+        if(dist < closetDistance && info.isPassable()) {
+          closetDistance = dist;
+          closest = info.getMapLocation();
+        }
+      }
+      Direction direction = rc.getLocation().directionTo(closest);
+      if (!isValidDirection(rc, direction)) {
+        boolean isValid = false;
+        Direction[] directions = {direction.rotateLeft(), direction.rotateRight(), direction.rotateLeft().rotateLeft(), direction.rotateRight().rotateRight()};
+        for (Direction dir : directions) {
+          if (isValidDirection(rc, dir)) {
+            direction = dir;
+            isValid = true;
+          }
+        }
+      }
+
+      moveTowardsGoal(rc, direction, "Move closest to goal");
+
+    }
+
+  public static boolean isValidDirection(RobotController rc, Direction direction) throws GameActionException {
+    RobotInfo robot = rc.senseRobotAtLocation(rc.getLocation().add(direction));
+    return rc.senseMapInfo(rc.getLocation().add(direction)).isPassable() && robot == null && (lastDirection == null || direction != lastDirection.opposite());
+  }
 
     public static void updateEnemyRobots(RobotController rc) throws GameActionException{
         // Sensing methods can be passed in a radius of -1 to automatically 
