@@ -11,6 +11,7 @@ import battlecode.common.RobotInfo;
 import battlecode.common.TrapType;
 
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Random;
 
 /**
@@ -26,6 +27,16 @@ public strictfp class RobotPlayer {
      * these variables are static, in Battlecode they aren't actually shared between your robots.
      */
     static int turnCount = 0;
+
+    static Integer FLAG_SEEKER_ROLE_INDEX = 1;
+
+    static Integer BATTLE_BOT_ROLE_INDEX = 2;
+
+    static Integer GATHERER_BOT_ROLE_INDEX = 3;
+
+    static Integer CARRIER_BOT_ROLE_INDEX = 4;
+
+    static HashMap<Integer, Integer> roleCounts = new HashMap<>();
 
     /**
      * A random number generator.
@@ -95,13 +106,16 @@ public strictfp class RobotPlayer {
                         Direction dir = rc.getLocation().directionTo(firstLoc);
                         if (rc.canMove(dir)) rc.move(dir);
                    }
-                    FlagInfo[] flagInfo = rc.senseNearbyFlags(20, rc.getTeam().opponent());
-                    if(flagInfo.length != 0) {
+                    FlagInfo[] flagInfos = rc.senseNearbyFlags(20, rc.getTeam().opponent());
+                    if(flagInfos.length != 0) {
                         //Move towards enemy flag
-                        MapLocation firstLoc = flagInfo[0].getLocation();
-                        Direction dir = rc.getLocation().directionTo(firstLoc);
-                        //flagInfo[0].isPickedUp()
-                        moveTowardsGoal(rc, dir, "Sensed flag, going there!");
+                        for(FlagInfo flag : flagInfos) {
+                            if(flag.isPickedUp()) {
+                              continue;
+                            }
+                          Direction dir = rc.getLocation().directionTo(flag.getLocation());
+                          moveTowardsGoal(rc, dir, "Sensed flag, going there!");
+                        }
                     }
 
                     if(rc.isMovementReady()) {
@@ -169,6 +183,34 @@ public strictfp class RobotPlayer {
 
         // Your code should never reach here (unless it's intentional)! Self-destruction imminent...
     }
+
+    private static void flagSeekerLogic(RobotController rc) {
+      // Seek flag and switch to carrier or protector after capture.
+    }
+
+    private static void flagCarrierLogic(RobotController rc) {
+      //TODO
+      // Return home logic
+    }
+
+    private static void flagCarrierProtectorLogic(RobotController rc) {
+      //TODO
+      // Stay close to flag carrier, destroy enemy bots near. Fill holes around flag carrier.
+
+    }
+
+    private static void battleBotLogic(RobotController rc) {
+      //TODO
+      // Attack enemies and set traps?
+      // Search and destroy enemy flag carriers
+    }
+
+    private static void gatherBotLogic(RobotController rc) {
+      //TODO
+      // Temporary role
+      // Gather resources in first 300-400 turns for sure.
+    }
+
 
     private static void moveTowardsGoal(RobotController rc, Direction goal, String log) {
       if(!rc.isMovementReady()) {
