@@ -10,6 +10,7 @@ import java.util.ArrayList;
 
 import static SimpleFlagCaptureRobot.DirectionService.getRandomLocation;
 import static SimpleFlagCaptureRobot.DirectionService.determineClosestLocationDirection;
+import static SimpleFlagCaptureRobot.RobotPlayer.getClosestBotLocation;
 import static SimpleFlagCaptureRobot.RobotPlayer.moveTowardsGoal;
 import static SimpleFlagCaptureRobot.RobotPlayer.performGenericAction;
 import static SimpleFlagCaptureRobot.RobotPlayer.role;

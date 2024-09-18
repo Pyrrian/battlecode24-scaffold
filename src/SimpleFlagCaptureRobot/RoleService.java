@@ -27,9 +27,6 @@ public class RoleService {
             return role;
         }
 
-        if (role != GATHERER) {
-            int n = 1;
-        }
         int nRoles = rc.readSharedArray(role.getIndex());
         rc.writeSharedArray(role.getIndex(), Math.max(nRoles - 1, 0));
 

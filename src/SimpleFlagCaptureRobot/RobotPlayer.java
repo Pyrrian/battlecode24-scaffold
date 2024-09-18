@@ -4,9 +4,13 @@ import battlecode.common.Clock;
 import battlecode.common.Direction;
 import battlecode.common.FlagInfo;
 import battlecode.common.GameActionException;
+import battlecode.common.GlobalUpgrade;
 import battlecode.common.MapLocation;
 import battlecode.common.RobotController;
 import battlecode.common.RobotInfo;
+import battlecode.common.SkillType;
+import battlecode.common.TrapType;
+import battlecode.world.Trap;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -19,11 +23,9 @@ import static SimpleFlagCaptureRobot.DirectionService.getRandomLocation;
 import static SimpleFlagCaptureRobot.GatherService.gatherBotLogic;
 import static SimpleFlagCaptureRobot.Role.GATHERER;
 import static SimpleFlagCaptureRobot.RoleService.determineRole;
-import static SimpleFlagCaptureRobot.RoleService.setRole;
-import static SimpleFlagCaptureRobot.SeekerService.flagCarrierLogic;
 import static SimpleFlagCaptureRobot.SeekerService.flagSeekerLogic;
 import static battlecode.common.GameConstants.ATTACK_RADIUS_SQUARED;
-import static battlecode.common.GameConstants.VISION_RADIUS_SQUARED;
+import static battlecode.common.GameConstants.DEFAULT_HEALTH;
 
 /**
  * RobotPlayer is the class that describes your main robot strategy.
@@ -82,7 +84,13 @@ public strictfp class RobotPlayer {
             // This code runs during the entire lifespan of the robot, which is why it is in an infinite
             // loop. If we ever leave this loop and return from run(), the robot dies! At the end of the
             // loop, we call Clock.yield(), signifying that we've done everything we want to do.
-
+            if (rc.canBuyGlobal(GlobalUpgrade.CAPTURING)) {
+                rc.buyGlobal(GlobalUpgrade.CAPTURING);
+            } else if (rc.canBuyGlobal(GlobalUpgrade.ATTACK)) {
+                rc.buyGlobal(GlobalUpgrade.ATTACK);
+            } else if (rc.canBuyGlobal(GlobalUpgrade.HEALING)) {
+                rc.buyGlobal(GlobalUpgrade.HEALING);
+            }
             ;  // We have now been alive for one more turn!
             // Try/catch blocks stop unhandled exceptions, which cause your robot to explode.
             try {
@@ -139,9 +147,50 @@ public strictfp class RobotPlayer {
     public static boolean targetAndAttackEnemyBot(RobotController rc) throws GameActionException {
         RobotInfo[] enemyRobotsInAttackRange = rc.senseNearbyRobots(ATTACK_RADIUS_SQUARED, rc.getTeam().opponent());
         if (enemyRobotsInAttackRange.length > 0) {
-            MapLocation location = enemyRobotsInAttackRange[0].getLocation();
+            MapLocation location = getClosestBotLocation(rc, enemyRobotsInAttackRange);
             if (rc.canAttack(location)) {
                 rc.attack(location);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public static boolean dropTrap(RobotController rc) throws GameActionException {
+        // Rarely attempt placing traps behind the robot.
+        MapLocation prevLoc = rc.getLocation().subtract(lastDirection.opposite());
+        TrapType[] trapTypes = {TrapType.EXPLOSIVE, TrapType.STUN};
+        TrapType randomTrap = trapTypes[rng.nextInt(trapTypes.length)];
+        if (rc.canBuild(randomTrap, prevLoc) && rng.nextInt() % 37 == 1) {
+            rc.build(randomTrap, prevLoc);
+            return true;
+        }
+        return false;
+    }
+
+    public static MapLocation getClosestBotLocation(RobotController rc, RobotInfo[] enemyRobotsInAttackRange) throws GameActionException {
+        ArrayList<MapLocation> locations = new ArrayList<>();
+        for (RobotInfo info : enemyRobotsInAttackRange) {
+            locations.add(info.getLocation());
+        }
+        MapLocation[] array = locations.toArray(new MapLocation[0]);
+        MapLocation randomLocation = getRandomLocation(rc);
+        return determineClosestLocationDirection(rc, array, randomLocation);
+    }
+
+    public static boolean healAllyBot(RobotController rc) throws GameActionException {
+        RobotInfo[] allyRobotsInAttackRange = rc.senseNearbyRobots(ATTACK_RADIUS_SQUARED, rc.getTeam());
+        ArrayList<RobotInfo> injuredRobots = new ArrayList<>();
+        if (allyRobotsInAttackRange.length > 0) {
+            for (RobotInfo robot : allyRobotsInAttackRange) {
+                if (robot.health < DEFAULT_HEALTH) {
+                    injuredRobots.add(robot);
+                }
+            }
+            RobotInfo[] injuredRobotsArray = injuredRobots.toArray(new RobotInfo[0]);
+            MapLocation location = getClosestBotLocation(rc, injuredRobotsArray);
+            if (rc.canHeal(location)) {
+                rc.heal(location);
                 return true;
             }
         }
@@ -266,24 +315,91 @@ public strictfp class RobotPlayer {
     }
 
     public static void performGenericAction(RobotController rc) throws GameActionException {
-        if (rc.senseNearbyFlags(VISION_RADIUS_SQUARED, rc.getTeam().opponent()).length > 0) {
-            FlagInfo[] flags = rc.senseNearbyFlags(VISION_RADIUS_SQUARED, rc.getTeam().opponent());
-            ArrayList<MapLocation> flagLocations = new ArrayList<>();
-            for (FlagInfo flag : flags) {
-                flagLocations.add(flag.getLocation());
-            }
-            MapLocation direction = getRandomLocation(rc);
-            MapLocation location = determineClosestLocationDirection(rc, flagLocations.toArray(new MapLocation[0]), direction);
-            if (rc.canPickupFlag(location)) {
-                flagCarrierLogic(rc);
-            }
-            moveTowardsGoal(rc, location);
+        FlagInfo[] flags = rc.senseNearbyFlags(-1, rc.getTeam().opponent());
+        if (flags.length > 0 && rc.canPickupFlag(rc.getLocation())) {
+            rc.pickupFlag(rc.getLocation());
+            MapLocation closestSpawnLocation = determineClosestLocationDirection(rc, rc.getAllySpawnLocations(), getRandomLocation(rc));
+            moveTowardsGoal(rc, closestSpawnLocation);
+            return;
         }
-        // pick up flag
-        // check specialization
-        // attack
-        // heal (prefer flag carrier)
-        // build (traps around flag)
+        RobotInfo myself = rc.senseRobot(rc.getID());
 
+        if (myself.attackLevel <= 3 && myself.healLevel <= 3 && myself.buildLevel <= 3) {
+            performRandomAction(rc);
+            return;
+        }
+
+        SkillType bestSkill = determineBestSkill(myself);
+        switch (bestSkill) {
+            case ATTACK:
+                if (targetAndAttackEnemyBot(rc)) {
+                    return;
+                } else {
+                    performRandomAction(rc);
+                    break;
+                }
+            case HEAL:
+                if (healAllyBot(rc)) {
+                    return;
+                } else {
+                    performRandomAction(rc);
+                    break;
+                }
+            case BUILD:
+                dropTrap(rc);
+                break;
+        }
+        moveTowardsGoal(rc, getRandomLocation(rc));
+    }
+
+    private static void performRandomAction(RobotController rc) throws GameActionException {
+        SkillType[] skillTypes = SkillType.values();
+        SkillType randomSkill = skillTypes[rng.nextInt(skillTypes.length)];
+
+        switch (randomSkill) {
+            case ATTACK:
+                if (targetAndAttackEnemyBot(rc)) {
+                    break;
+                } else {
+                    randomSkill = SkillType.HEAL;
+                }
+            case HEAL:
+                if (healAllyBot(rc)) {
+                    break;
+                } else {
+                    randomSkill = SkillType.BUILD;
+                }
+            case BUILD:
+                dropTrap(rc);
+                break;
+        }
+    }
+
+    private static SkillType determineBestSkill(RobotInfo myself) {
+        SkillType bestSkill = null;
+        int bestLevel = 0;
+        for (SkillType skill : SkillType.values()) {
+            switch (skill) {
+                case ATTACK:
+                    if (myself.attackLevel > bestLevel) {
+                        bestSkill = skill;
+                        bestLevel = myself.attackLevel;
+                    }
+                    break;
+                case HEAL:
+                    if (myself.healLevel > bestLevel) {
+                        bestSkill = skill;
+                        bestLevel = myself.healLevel;
+                    }
+                    break;
+                case BUILD:
+                    if (myself.buildLevel > bestLevel) {
+                        bestSkill = skill;
+                        bestLevel = myself.buildLevel;
+                    }
+                    break;
+            }
+        }
+        return bestSkill;
     }
 }
