@@ -34,7 +34,7 @@ public class GatherService {
                         }
                     }
                     MapLocation[] crumbLocations = rc.senseNearbyCrumbs(VISION_RADIUS_SQUARED);
-                    Direction direction = getRandomDirection(rc);
+                    MapLocation direction = getRandomDirection(rc);
                     MapLocation location = determineClosestLocationDirection(rc, crumbLocations, direction);
                     moveTowardsGoal(rc, location);
                 }

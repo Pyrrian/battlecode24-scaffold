@@ -7,6 +7,7 @@ import battlecode.common.MapLocation;
 import battlecode.common.RobotController;
 import battlecode.common.RobotInfo;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 
 import static SimpleFlagCaptureRobot.DirectionService.getRandomDirection;
@@ -30,9 +31,13 @@ public class BattleService {
                     // Search and destroy enemy flag carriers
 
                     RobotInfo[] robots = rc.senseNearbyRobots(VISION_RADIUS_SQUARED, rc.getTeam().opponent());
-                    MapLocation[] robotLocations = (MapLocation[]) Arrays.stream(robots).map(RobotInfo::getLocation).toArray();
-                    Direction direction = getRandomDirection(rc);
-                    MapLocation location = determineClosestLocationDirection(rc, robotLocations, direction);
+                    ArrayList<MapLocation> locations = new ArrayList<>();
+                    for(RobotInfo info: robots) {
+                        locations.add(info.getLocation());
+                    }
+                    MapLocation[] array = locations.toArray(new MapLocation[0]);
+                    MapLocation randomLocation = getRandomDirection(rc);
+                    MapLocation location = determineClosestLocationDirection(rc, array, randomLocation);
                     if (rc.canAttack(location)) {
                         rc.attack(location);
                         System.out.println("Take that! Damaged an enemy that was in our way!");

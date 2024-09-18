@@ -2,6 +2,7 @@ package SimpleFlagCaptureRobot;
 
 import battlecode.common.Direction;
 import battlecode.common.GameActionException;
+import battlecode.common.MapInfo;
 import battlecode.common.MapLocation;
 import battlecode.common.RobotController;
 import battlecode.common.RobotInfo;
@@ -12,7 +13,7 @@ import static SimpleFlagCaptureRobot.RobotPlayer.lastDirection;
 
 public class DirectionService {
 
-    public static MapLocation determineClosestLocationDirection(RobotController rc, MapLocation[] locations, Direction direction) {
+    public static MapLocation determineClosestLocationDirection(RobotController rc, MapLocation[] locations, MapLocation direction) {
         if (locations.length > 0) {
             MapLocation closest = locations[0];
             int maxDistance = Integer.MAX_VALUE;
@@ -24,14 +25,19 @@ public class DirectionService {
             }
             return closest;
         }
-        return rc.getLocation().add(direction);
+        return direction;
     }
 
-    public static Direction getRandomDirection(RobotController rc) {
-        ArrayList<Direction> directions = new ArrayList<>();
-        directions.add(whereIsX(rc).opposite());
-        directions.add(whereIsY(rc).opposite());
-        return directions.get((int) (Math.random() * 2));
+    public static MapLocation getRandomDirection(RobotController rc) throws GameActionException {
+        MapInfo[] randomInfo = rc.senseNearbyMapInfos();
+        ArrayList<MapInfo> emptySlots = new ArrayList<>();
+        for(MapInfo info: randomInfo) {
+            if(info.isPassable()) {
+               emptySlots.add(info);
+            }
+        }
+        int index = RobotPlayer.rng.nextInt(emptySlots.size()-1);
+        return emptySlots.get(index).getMapLocation();
     }
 
     public static Direction whereIsX(RobotController rc) {
