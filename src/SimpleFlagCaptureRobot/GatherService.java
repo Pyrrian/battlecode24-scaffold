@@ -6,10 +6,11 @@ import battlecode.common.GameActionException;
 import battlecode.common.MapLocation;
 import battlecode.common.RobotController;
 
-import static SimpleFlagCaptureRobot.DirectionService.changeDirectionIfNeeded;
+import static SimpleFlagCaptureRobot.DirectionService.determineClosestLocationDirection;
 import static SimpleFlagCaptureRobot.DirectionService.getRandomDirection;
-import static SimpleFlagCaptureRobot.DirectionService.moveToClosestLocation;
 import static SimpleFlagCaptureRobot.RobotPlayer.moveTowardsGoal;
+import static SimpleFlagCaptureRobot.RobotPlayer.role;
+import static SimpleFlagCaptureRobot.RobotPlayer.spawnRobotIfNeeded;
 import static SimpleFlagCaptureRobot.Role.GATHERER;
 import static battlecode.common.GameConstants.VISION_RADIUS_SQUARED;
 
@@ -17,23 +18,26 @@ public class GatherService {
 
     public static void gatherBotLogic(RobotController rc) throws GameActionException {
         while (true) {
+            rc.setIndicatorString("Role: " + role);
             if (rc.getRoundNum() > 400) {
                 break;
             }
             try {
-                if (rc.getRoundNum() > 200) {
-                    // If we have more than 20 gatherers, redetermine role.
-                    int nGatherers = rc.readSharedArray(GATHERER.getIndex());
-                    if (nGatherers > 20) {
-                        rc.writeSharedArray(GATHERER.getIndex(), nGatherers - 1);
-                        break;
+                if(!spawnRobotIfNeeded(rc)) {
+
+                    if (rc.getRoundNum() > 200) {
+                        // If we have more than 20 gatherers, redetermine role.
+                        int nGatherers = rc.readSharedArray(GATHERER.getIndex());
+                        if (nGatherers > 20) {
+                            rc.writeSharedArray(GATHERER.getIndex(), nGatherers - 1);
+                            break;
+                        }
                     }
+                    MapLocation[] crumbLocations = rc.senseNearbyCrumbs(VISION_RADIUS_SQUARED);
+                    Direction direction = getRandomDirection(rc);
+                    MapLocation location = determineClosestLocationDirection(rc, crumbLocations, direction);
+                    moveTowardsGoal(rc, location);
                 }
-                MapLocation[] crumbLocations = rc.senseNearbyCrumbs(VISION_RADIUS_SQUARED);
-                Direction direction = getRandomDirection(rc);
-                direction = moveToClosestLocation(rc, crumbLocations, direction);
-                direction = changeDirectionIfNeeded(rc, direction);
-                moveTowardsGoal(rc, direction, "Move towards crumb");
             } catch (Exception e) {
 
             } finally {

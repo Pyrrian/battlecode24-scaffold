@@ -12,7 +12,7 @@ import static SimpleFlagCaptureRobot.RobotPlayer.lastDirection;
 
 public class DirectionService {
 
-    public static Direction moveToClosestLocation(RobotController rc, MapLocation[] locations, Direction direction) {
+    public static MapLocation determineClosestLocationDirection(RobotController rc, MapLocation[] locations, Direction direction) {
         if (locations.length > 0) {
             MapLocation closest = locations[0];
             int maxDistance = Integer.MAX_VALUE;
@@ -22,9 +22,9 @@ public class DirectionService {
                     closest = loc;
                 }
             }
-            direction = rc.getLocation().directionTo(closest);
+            return closest;
         }
-        return direction;
+        return rc.getLocation().add(direction);
     }
 
     public static Direction getRandomDirection(RobotController rc) {
@@ -58,25 +58,54 @@ public class DirectionService {
         }
     }
 
-    public static Direction changeDirectionIfNeeded(RobotController rc, Direction direction) throws GameActionException {
-        if (!isValidDirection(rc, direction)) {
-            boolean isValid = false;
-            Direction[] directions = {direction.rotateLeft(), direction.rotateRight(), direction.rotateLeft().rotateLeft(), direction.rotateRight().rotateRight()};
-            for (Direction dir : directions) {
-                if (isValidDirection(rc, dir)) {
-                    direction = dir;
-                    isValid = true;
-                }
-            }
-            if (!isValid) {
-                rc.fill(rc.getLocation().add(direction));
-            }
-        }
-        return direction;
-    }
+//    public static Direction changeDirectionIfNeeded(RobotController rc, Direction direction) throws GameActionException {
+//        if (!isValidDirection(rc, direction)) {
+//            boolean isValid = false;
+//            Direction[] directions = {direction.rotateLeft(), direction.rotateRight(), direction.rotateLeft().rotateLeft(), direction.rotateRight().rotateRight()};
+//            for (Direction dir : directions) {
+//                if (isValidDirection(rc, dir)) {
+//                    direction = dir;
+//                    isValid = true;
+//                }
+//            }
+//            if (!isValid) {
+//                rc.fill(rc.getLocation().add(direction));
+//            }
+//        }
+//        return direction;
+//    }
 
     public static boolean isValidDirection(RobotController rc, Direction direction) throws GameActionException {
         RobotInfo robot = rc.senseRobotAtLocation(rc.getLocation().add(direction));
         return rc.senseMapInfo(rc.getLocation().add(direction)).isPassable() && robot == null && (lastDirection == null || direction != lastDirection.opposite());
+    }
+
+    public static Direction towardsMiddle(RobotController rc) {
+
+        int midHeight = rc.getMapHeight()/2;
+        int midWidth = rc.getMapWidth()/2;
+        int x = rc.getLocation().x;
+        int y = rc.getLocation().y;
+
+        if(x < midWidth) {
+            if(y < midHeight) {
+                return Direction.NORTHEAST;
+            }
+            return Direction.SOUTHEAST;
+        }
+        else if(x == midWidth) {
+            if(y < midHeight) {
+                return Direction.NORTH;
+            }
+            else {
+                return Direction.SOUTH;
+            }
+        }
+        else {
+            if(y < midHeight) {
+                return Direction.NORTHWEST;
+            }
+            return Direction.SOUTHWEST;
+        }
     }
 }

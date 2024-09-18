@@ -17,7 +17,6 @@ import static SimpleFlagCaptureRobot.GatherService.gatherBotLogic;
 import static SimpleFlagCaptureRobot.RoleService.determineRole;
 import static SimpleFlagCaptureRobot.SeekerService.flagSeekerLogic;
 import static battlecode.common.GameConstants.ATTACK_RADIUS_SQUARED;
-import static battlecode.common.GameConstants.VISION_RADIUS_SQUARED;
 
 /**
  * RobotPlayer is the class that describes your main robot strategy.
@@ -33,9 +32,11 @@ public strictfp class RobotPlayer {
      */
     static int turnCount = 0;
 
-  static Set<MapLocation> lastLocation = new HashSet<>();
+    static Role role = Role.GATHERER;
 
-  static Direction lastDirection;
+    static Set<MapLocation> lastLocation = new HashSet<>();
+
+    static Direction lastDirection;
 
     /**
      * A random number generator.
@@ -45,24 +46,26 @@ public strictfp class RobotPlayer {
      */
     static final Random rng = new Random(6147);
 
-    /** Array containing all the possible movement directions. */
+    /**
+     * Array containing all the possible movement directions.
+     */
     static final Direction[] directions = {
-        Direction.NORTH,
-        Direction.NORTHEAST,
-        Direction.EAST,
-        Direction.SOUTHEAST,
-        Direction.SOUTH,
-        Direction.SOUTHWEST,
-        Direction.WEST,
-        Direction.NORTHWEST,
+            Direction.NORTH,
+            Direction.NORTHEAST,
+            Direction.EAST,
+            Direction.SOUTHEAST,
+            Direction.SOUTH,
+            Direction.SOUTHWEST,
+            Direction.WEST,
+            Direction.NORTHWEST,
     };
 
     /**
      * run() is the method that is called when a robot is instantiated in the Battlecode world.
      * It is like the main function for your robot. If this method returns, the robot dies!
      *
-     * @param rc  The RobotController object. You use it to perform actions from this robot, and to get
-     *            information on its current status. Essentially your portal to interacting with the world.
+     * @param rc The RobotController object. You use it to perform actions from this robot, and to get
+     *           information on its current status. Essentially your portal to interacting with the world.
      **/
     @SuppressWarnings("unused")
     public static void run(RobotController rc) throws GameActionException {
@@ -78,17 +81,17 @@ public strictfp class RobotPlayer {
             try {
                 // Make sure you spawn your robot in before you attempt to take any actions!
                 // Robots not spawned in do not have vision of any tiles and cannot perform any actions.
-                if(!spawnRobotIfNeeded(rc)) {
+                if (!spawnRobotIfNeeded(rc)) {
 
-                  Role role = determineRole(rc);
-                  switch (role) {
-                    case SEEKER:
-                      flagSeekerLogic(rc);
-                    case BATTLE:
-                      battleBotLogic(rc);
-                    case GATHERER:
-                      gatherBotLogic(rc);
-                  }
+                    Role role = determineRole(rc);
+                    switch (role) {
+                        case SEEKER:
+                            flagSeekerLogic(rc);
+                        case BATTLE:
+                            battleBotLogic(rc);
+                        case GATHERER:
+                            gatherBotLogic(rc);
+                    }
                 }
 
             } catch (GameActionException e) {
@@ -116,29 +119,29 @@ public strictfp class RobotPlayer {
     }
 
     public static boolean spawnRobotIfNeeded(RobotController rc) throws GameActionException {
-      if (!rc.isSpawned()){
-        MapLocation[] spawnLocs = rc.getAllySpawnLocations();
-        // Pick a random spawn location to attempt spawning in.
-        MapLocation randomLoc = spawnLocs[rng.nextInt(spawnLocs.length)];
-        if (rc.canSpawn(randomLoc)) rc.spawn(randomLoc);
-        return true;
-      }
-      return false;
+        if (!rc.isSpawned()) {
+            MapLocation[] spawnLocs = rc.getAllySpawnLocations();
+            // Pick a random spawn location to attempt spawning in.
+            MapLocation randomLoc = spawnLocs[rng.nextInt(spawnLocs.length)];
+            if (rc.canSpawn(randomLoc)) rc.spawn(randomLoc);
+            return true;
+        }
+        return false;
     }
 
     public static boolean targetAndAttackEnemyBot(RobotController rc) throws GameActionException {
-      RobotInfo[] enemyRobotsInAttackRange = rc.senseNearbyRobots(ATTACK_RADIUS_SQUARED, rc.getTeam().opponent());
-      if(enemyRobotsInAttackRange.length > 0) {
-        MapLocation location = enemyRobotsInAttackRange[0].getLocation();
-        if(rc.canAttack(location)) {
-          rc.attack(location);
-          return true;
+        RobotInfo[] enemyRobotsInAttackRange = rc.senseNearbyRobots(ATTACK_RADIUS_SQUARED, rc.getTeam().opponent());
+        if (enemyRobotsInAttackRange.length > 0) {
+            MapLocation location = enemyRobotsInAttackRange[0].getLocation();
+            if (rc.canAttack(location)) {
+                rc.attack(location);
+                return true;
+            }
         }
-      }
-      return false;
+        return false;
     }
 
-  public static void moveTowardsGoal(RobotController rc, Direction goal, String log) {
+  private static void moveTowardsGoal(RobotController rc, Direction goal, String log) {
     if(!rc.isMovementReady()) {
       return;
     }
@@ -150,8 +153,6 @@ public strictfp class RobotPlayer {
     catch (GameActionException gae) {
     }
   }
-
-
 
   public static void moveTowardsGoal(RobotController rc, MapLocation goal) throws GameActionException {
     Direction direction = weightedDirectionChoice(rc, goal);
@@ -168,97 +169,93 @@ public strictfp class RobotPlayer {
 
       MapLocation targetLocation = rc.getLocation().add(dir);
 
-      if(checkIfRobotIsAtLocation(rc, targetLocation)) {
-        points = Integer.MIN_VALUE;
-      }
-      if(!checkIfPassable(rc, targetLocation) && (!checkIfWater(rc, targetLocation))) {
-        points = Integer.MIN_VALUE;
-      }
-      if(checkIfWater(rc, targetLocation)) {
-        points -= 4;
-      }
-      if (dir.equals(goalDirection)) {
-        points += 7;
-      }
-      if (dir.equals(goalDirection.rotateLeft()) | dir.equals(goalDirection.rotateRight())) {
-        points += 5;
-      }
-      if(dir.equals(goalDirection.rotateLeft().rotateLeft()) | dir.equals(goalDirection.rotateRight().rotateRight())) {
-        points += 3;
-      }
-      if(dir.equals(goalDirection.rotateLeft().rotateLeft().rotateLeft()) | dir.equals(goalDirection.rotateRight().rotateRight().rotateRight())) {
-        points += 1;
-      }
-      if (checkIfPassable(rc, targetLocation.add(dir))) {
-        points += 2;
-        if(checkIfPassable(rc, targetLocation.add(dir).add(dir)))
-        {
-          points += 2;
+        if (checkIfRobotIsAtLocation(rc, targetLocation)) {
+            points = Integer.MIN_VALUE;
         }
-      }
+        if (!checkIfPassable(rc, targetLocation) && (!checkIfWater(rc, targetLocation))) {
+            points = Integer.MIN_VALUE;
+        }
+        if (checkIfWater(rc, targetLocation)) {
+            points -= 4;
+        }
+        if (dir.equals(goalDirection)) {
+            points += 7;
+        }
+        if (dir.equals(goalDirection.rotateLeft()) | dir.equals(goalDirection.rotateRight())) {
+            points += 5;
+        }
+        if (dir.equals(goalDirection.rotateLeft().rotateLeft()) | dir.equals(goalDirection.rotateRight().rotateRight())) {
+            points += 3;
+        }
+        if (dir.equals(goalDirection.rotateLeft().rotateLeft().rotateLeft()) | dir.equals(goalDirection.rotateRight().rotateRight().rotateRight())) {
+            points += 1;
+        }
+        if (checkIfPassable(rc, targetLocation.add(dir))) {
+            points += 2;
+            if (checkIfPassable(rc, targetLocation.add(dir).add(dir))) {
+                points += 2;
+            }
+        }
 
-      if(lastDirection != null && dir.equals(lastDirection.opposite())) {
-        points -= 5;
-      }
-      if(lastLocation.contains(targetLocation))
-      {
-        points -= 5;
-      }
-      if(points > maxPoints) {
-        maxPoints = points;
-        bestDir = dir;
-      }
+        if (lastDirection != null && dir.equals(lastDirection.opposite())) {
+            points -= 5;
+        }
+        if (lastLocation.contains(targetLocation)) {
+            points -= 5;
+        }
+        if (points > maxPoints) {
+            maxPoints = points;
+            bestDir = dir;
+        }
+    }
+    if (checkIfWater(rc, rc.getLocation().add(bestDir))) {
+        rc.fill(rc.getLocation().add(bestDir));
     }
     return bestDir;
-  }
+}
 
-  private static boolean checkIfRobotIsAtLocation(RobotController rc, MapLocation location) {
+private static boolean checkIfRobotIsAtLocation(RobotController rc, MapLocation location) {
     try {
-      return rc.senseRobotAtLocation(location) != null;
+        return rc.senseRobotAtLocation(location) != null;
     } catch (GameActionException e) {
-      return false;
+        return false;
     }
-  }
+}
 
-  private static boolean checkIfPassable(RobotController rc, MapLocation location) {
+private static boolean checkIfPassable(RobotController rc, MapLocation location) {
     try {
-      return rc.senseMapInfo(location)
-               .isPassable();
+        return rc.senseMapInfo(location)
+                .isPassable();
     } catch (GameActionException e) {
-      return false;
+        return false;
     }
-  }
+}
 
-  private static boolean checkIfWater(RobotController rc, MapLocation location) {
+private static boolean checkIfWater(RobotController rc, MapLocation location) {
     try {
-      return rc.senseMapInfo(location)
-               .isWater();
+        return rc.senseMapInfo(location)
+                .isWater();
     } catch (GameActionException e) {
-      return false;
+        return false;
     }
-  }
+}
 
-  public static boolean isValidDirection(RobotController rc, Direction direction) throws GameActionException {
-    RobotInfo robot = rc.senseRobotAtLocation(rc.getLocation().add(direction));
-    return rc.senseMapInfo(rc.getLocation().add(direction)).isPassable() && robot == null && (lastDirection == null || direction != lastDirection.opposite());
-  }
-
-    public static void updateEnemyRobots(RobotController rc) throws GameActionException{
-        // Sensing methods can be passed in a radius of -1 to automatically 
-        // use the largest possible value.
-        RobotInfo[] enemyRobots = rc.senseNearbyRobots(-1, rc.getTeam().opponent());
-        if (enemyRobots.length != 0){
-            rc.setIndicatorString("There are nearby enemy robots! Scary!");
-            // Save an array of locations with enemy robots in them for future use.
-            MapLocation[] enemyLocations = new MapLocation[enemyRobots.length];
-            for (int i = 0; i < enemyRobots.length; i++){
-                enemyLocations[i] = enemyRobots[i].getLocation();
-            }
-            // Let the rest of our team know how many enemy robots we see!
-            if (rc.canWriteSharedArray(0, enemyRobots.length)){
-                rc.writeSharedArray(0, enemyRobots.length);
-                int numEnemies = rc.readSharedArray(0);
-            }
+public static void updateEnemyRobots(RobotController rc) throws GameActionException {
+    // Sensing methods can be passed in a radius of -1 to automatically
+    // use the largest possible value.
+    RobotInfo[] enemyRobots = rc.senseNearbyRobots(-1, rc.getTeam().opponent());
+    if (enemyRobots.length != 0) {
+        rc.setIndicatorString("There are nearby enemy robots! Scary!");
+        // Save an array of locations with enemy robots in them for future use.
+        MapLocation[] enemyLocations = new MapLocation[enemyRobots.length];
+        for (int i = 0; i < enemyRobots.length; i++) {
+            enemyLocations[i] = enemyRobots[i].getLocation();
+        }
+        // Let the rest of our team know how many enemy robots we see!
+        if (rc.canWriteSharedArray(0, enemyRobots.length)) {
+            rc.writeSharedArray(0, enemyRobots.length);
+            int numEnemies = rc.readSharedArray(0);
         }
     }
+}
 }

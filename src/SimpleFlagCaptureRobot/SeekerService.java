@@ -9,7 +9,10 @@ import battlecode.common.MapInfo;
 import battlecode.common.MapLocation;
 import battlecode.common.RobotController;
 
+import static SimpleFlagCaptureRobot.DirectionService.determineClosestLocationDirection;
+import static SimpleFlagCaptureRobot.DirectionService.getRandomDirection;
 import static SimpleFlagCaptureRobot.RobotPlayer.moveTowardsGoal;
+import static SimpleFlagCaptureRobot.RobotPlayer.role;
 import static SimpleFlagCaptureRobot.RobotPlayer.spawnRobotIfNeeded;
 
 public class SeekerService {
@@ -17,6 +20,8 @@ public class SeekerService {
     public static void flagSeekerLogic(RobotController rc) {
         // Seek flag and switch to carrier or protector after capture.
         while (true) {
+            rc.setIndicatorString("Role: " + role);
+
             try {
                 if(!spawnRobotIfNeeded(rc)) {
                     FlagInfo[] flags = rc.senseNearbyFlags(-1, rc.getTeam()
@@ -53,13 +58,11 @@ public class SeekerService {
                     }
 
                     if (rc.isMovementReady()) {
+                        Direction direction = getRandomDirection(rc);
                         MapLocation[] broadcastFlags = rc.senseBroadcastFlagLocations();
-                        if (broadcastFlags.length != 0) {
-                            moveTowardsGoal(rc, broadcastFlags[0]);
-                        }
+                        MapLocation location = determineClosestLocationDirection(rc, broadcastFlags, direction);
+                        moveTowardsGoal(rc, location);
                     }
-                    moveTowardsGoal(rc, towardsMiddle(rc), "Moving away from spawnlocation");
-
                 }
             }catch (Exception e) {
                 System.out.println("GameActionException");
@@ -68,38 +71,6 @@ public class SeekerService {
             finally {
                 Clock.yield();}
         }
-    }
-
-    private static Direction towardsMiddle(RobotController rc) {
-
-        int midHeight = rc.getMapHeight()/2;
-        int midWidth = rc.getMapWidth()/2;
-        int x = rc.getLocation().x;
-        int y = rc.getLocation().y;
-
-        if(x < midWidth) {
-            if(y < midHeight) {
-                return Direction.NORTHEAST;
-            }
-            return Direction.SOUTHEAST;
-        }
-        else if(x == midWidth) {
-            if(y < midHeight) {
-                return Direction.NORTH;
-            }
-            else {
-                return Direction.SOUTH;
-            }
-        }
-        else {
-            if(y < midHeight) {
-                return Direction.NORTHWEST;
-            }
-            return Direction.SOUTHWEST;
-        }
-
-
-
     }
 
     private static void flagCarrierLogic(RobotController rc) {
@@ -146,6 +117,7 @@ public class SeekerService {
 
     private static void flagCarrierProtectorLogic(RobotController rc) {
         while(true) {
+            rc.setIndicatorString("Role: " + "Flag Protector");
 
             try {
                 //TODO

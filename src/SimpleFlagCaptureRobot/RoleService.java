@@ -6,6 +6,7 @@ import battlecode.common.RobotController;
 import static SimpleFlagCaptureRobot.Role.BATTLE;
 import static SimpleFlagCaptureRobot.Role.GATHERER;
 import static SimpleFlagCaptureRobot.Role.SEEKER;
+import static SimpleFlagCaptureRobot.RobotPlayer.role;
 
 public class RoleService {
 
@@ -47,10 +48,10 @@ public class RoleService {
         }
     }
 
-    private static Role setRole(RobotController rc, Role role) throws GameActionException {
-        int currentBots = rc.readSharedArray(role.getIndex()) + 1;
-        rc.writeSharedArray(role.getIndex(), currentBots);
-        rc.setIndicatorString("Role: " + role);
-        return role;
+    private static Role setRole(RobotController rc, Role newRole) throws GameActionException {
+        int currentBots = rc.readSharedArray(newRole.getIndex()) + 1;
+        rc.writeSharedArray(newRole.getIndex(), currentBots);
+        role = newRole;
+        return newRole;
     }
 }
