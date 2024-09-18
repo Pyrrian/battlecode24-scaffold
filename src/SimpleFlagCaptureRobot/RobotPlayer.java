@@ -8,7 +8,9 @@ import battlecode.common.MapLocation;
 import battlecode.common.RobotController;
 import battlecode.common.RobotInfo;
 
+import java.util.HashSet;
 import java.util.Random;
+import java.util.Set;
 
 import static SimpleFlagCaptureRobot.BattleService.battleBotLogic;
 import static SimpleFlagCaptureRobot.GatherService.gatherBotLogic;
@@ -31,9 +33,9 @@ public strictfp class RobotPlayer {
      */
     static int turnCount = 0;
 
-    static MapLocation lastLocation;
+  static Set<MapLocation> lastLocation = new HashSet<>();
 
-    static Direction lastDirection;
+  static Direction lastDirection;
 
     /**
      * A random number generator.
@@ -136,79 +138,105 @@ public strictfp class RobotPlayer {
       return false;
     }
 
-    public static void moveTowardsGoal(RobotController rc, Direction goal, String log) {
-      if(!rc.isMovementReady()) {
-        return;
-      }
-      System.out.println(log);
+  public static void moveTowardsGoal(RobotController rc, Direction goal, String log) {
+    if(!rc.isMovementReady()) {
+      return;
+    }
+    try {
+      rc.move(goal);
+      lastLocation.add(rc.getLocation());
+      lastDirection = goal;
+    }
+    catch (GameActionException gae) {
+    }
+  }
 
-      try {
-        if (rc.canMove(goal)) {
-          rc.move(goal);
-          lastLocation = rc.getLocation();
-          lastDirection = goal;
-          return;
-        }
-        if (rc.canMove(goal.rotateLeft())) {
-          rc.move(goal.rotateLeft());
-          lastLocation = rc.getLocation();
-          lastDirection = goal.rotateLeft();
-          return;
-        }
-        if(rc.canMove(goal.rotateRight())) {
-          rc.move(goal.rotateRight());
-          lastLocation = rc.getLocation();
-          lastDirection = goal.rotateRight();
-        }
-        if(rc.canMove(goal.rotateRight().rotateRight())){
-          rc.move(goal.rotateRight().rotateRight());
-          lastLocation = rc.getLocation();
-          lastDirection = goal.rotateRight().rotateRight();
-          return;
-        }
-        if(rc.canMove(goal.rotateLeft().rotateLeft())){
-          rc.move(goal.rotateLeft().rotateLeft());
-          lastLocation = rc.getLocation();
-          lastDirection = goal.rotateLeft().rotateLeft();
-          return;
+
+
+  public static void moveTowardsGoal(RobotController rc, MapLocation goal) throws GameActionException {
+    Direction direction = weightedDirectionChoice(rc, goal);
+    moveTowardsGoal(rc, direction, "Move closest to goal");
+  }
+
+  public static Direction weightedDirectionChoice(RobotController rc, MapLocation goal) throws GameActionException {
+    Direction bestDir = Direction.NORTH;
+    int maxPoints = 0;
+    Direction goalDirection = rc.getLocation().directionTo(goal);
+
+    for(Direction dir : directions) {
+      int points = 0;
+
+      MapLocation targetLocation = rc.getLocation().add(dir);
+
+      if(checkIfRobotIsAtLocation(rc, targetLocation)) {
+        points = Integer.MIN_VALUE;
+      }
+      if(!checkIfPassable(rc, targetLocation) && (!checkIfWater(rc, targetLocation))) {
+        points = Integer.MIN_VALUE;
+      }
+      if(checkIfWater(rc, targetLocation)) {
+        points -= 4;
+      }
+      if (dir.equals(goalDirection)) {
+        points += 7;
+      }
+      if (dir.equals(goalDirection.rotateLeft()) | dir.equals(goalDirection.rotateRight())) {
+        points += 5;
+      }
+      if(dir.equals(goalDirection.rotateLeft().rotateLeft()) | dir.equals(goalDirection.rotateRight().rotateRight())) {
+        points += 3;
+      }
+      if(dir.equals(goalDirection.rotateLeft().rotateLeft().rotateLeft()) | dir.equals(goalDirection.rotateRight().rotateRight().rotateRight())) {
+        points += 1;
+      }
+      if (checkIfPassable(rc, targetLocation.add(dir))) {
+        points += 2;
+        if(checkIfPassable(rc, targetLocation.add(dir).add(dir)))
+        {
+          points += 2;
         }
       }
-      catch (GameActionException gae) {
-        return;
+
+      if(lastDirection != null && dir.equals(lastDirection.opposite())) {
+        points -= 5;
+      }
+      if(lastLocation.contains(targetLocation))
+      {
+        points -= 5;
+      }
+      if(points > maxPoints) {
+        maxPoints = points;
+        bestDir = dir;
       }
     }
+    return bestDir;
+  }
 
-
-
-    public static void moveTowardsGoal(RobotController rc, MapLocation goal) throws GameActionException {
-      //We cannot see the location
-      //Lets pathfind to the location we can see that is closest to the goal.
-      //We need to find the closest location
-      MapInfo[] allWeCanSee = rc.senseNearbyMapInfos(-1);
-      MapLocation closest = allWeCanSee[0].getMapLocation();
-      int closetDistance = closest.distanceSquaredTo(goal);
-      for(MapInfo info: allWeCanSee) {
-        int dist = info.getMapLocation().distanceSquaredTo(goal);
-        if(dist < closetDistance && info.isPassable()) {
-          closetDistance = dist;
-          closest = info.getMapLocation();
-        }
-      }
-      Direction direction = rc.getLocation().directionTo(closest);
-      if (!isValidDirection(rc, direction)) {
-        boolean isValid = false;
-        Direction[] directions = {direction.rotateLeft(), direction.rotateRight(), direction.rotateLeft().rotateLeft(), direction.rotateRight().rotateRight()};
-        for (Direction dir : directions) {
-          if (isValidDirection(rc, dir)) {
-            direction = dir;
-            isValid = true;
-          }
-        }
-      }
-
-      moveTowardsGoal(rc, direction, "Move closest to goal");
-
+  private static boolean checkIfRobotIsAtLocation(RobotController rc, MapLocation location) {
+    try {
+      return rc.senseRobotAtLocation(location) != null;
+    } catch (GameActionException e) {
+      return false;
     }
+  }
+
+  private static boolean checkIfPassable(RobotController rc, MapLocation location) {
+    try {
+      return rc.senseMapInfo(location)
+               .isPassable();
+    } catch (GameActionException e) {
+      return false;
+    }
+  }
+
+  private static boolean checkIfWater(RobotController rc, MapLocation location) {
+    try {
+      return rc.senseMapInfo(location)
+               .isWater();
+    } catch (GameActionException e) {
+      return false;
+    }
+  }
 
   public static boolean isValidDirection(RobotController rc, Direction direction) throws GameActionException {
     RobotInfo robot = rc.senseRobotAtLocation(rc.getLocation().add(direction));
