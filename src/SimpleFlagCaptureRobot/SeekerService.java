@@ -31,6 +31,11 @@ public class SeekerService {
                 if (!spawnRobotIfNeeded(rc)) {
                     FlagInfo[] flags = rc.senseNearbyFlags(-1, rc.getTeam().opponent());
                     if (flags.length != 0 && rc.canPickupFlag(rc.getLocation())) {
+                        rc.pickupFlag(rc.getLocation());
+                        flagCarrierLogic(rc);
+                        return;
+                    }
+                    if(rc.hasFlag()) {
                         flagCarrierLogic(rc);
                         return;
                     }
@@ -55,6 +60,7 @@ public class SeekerService {
                         }
                     } else {
                         performGenericAction(rc);
+                        return;
                     }
                 }
             } catch (Exception e) {
@@ -67,7 +73,6 @@ public class SeekerService {
     }
 
     public static void flagCarrierLogic(RobotController rc) throws GameActionException {
-        rc.pickupFlag(rc.getLocation());
         int flagCarriers = rc.readSharedArray(FLAG_CARRIER.getIndex());
         rc.writeSharedArray(FLAG_CARRIER.getIndex(), flagCarriers + 1);
 

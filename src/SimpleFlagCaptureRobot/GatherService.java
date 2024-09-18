@@ -35,6 +35,9 @@ public class GatherService {
                     MapLocation direction = getRandomLocation(rc);
                     MapLocation location = determineClosestLocationDirection(rc, crumbLocations, direction);
                     moveTowardsGoal(rc, location);
+
+
+
                 }
             } catch (Exception e) {
 
