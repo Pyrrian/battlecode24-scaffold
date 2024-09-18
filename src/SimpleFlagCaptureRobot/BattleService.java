@@ -13,7 +13,6 @@ import static SimpleFlagCaptureRobot.DirectionService.changeDirectionIfNeeded;
 import static SimpleFlagCaptureRobot.DirectionService.getRandomDirection;
 import static SimpleFlagCaptureRobot.DirectionService.moveToClosestLocation;
 import static SimpleFlagCaptureRobot.RobotPlayer.moveTowardsGoal;
-import static SimpleFlagCaptureRobot.RobotPlayer.turnCount;
 
 public class BattleService {
 
@@ -40,7 +39,6 @@ public class BattleService {
                 throw new RuntimeException(e);
             } finally {
                 Clock.yield();
-                turnCount += 1;
             }
         }
     }

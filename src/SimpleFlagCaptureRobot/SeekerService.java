@@ -9,12 +9,8 @@ import battlecode.common.MapInfo;
 import battlecode.common.MapLocation;
 import battlecode.common.RobotController;
 
-import java.util.Arrays;
-
-import static SimpleFlagCaptureRobot.RobotPlayer.directions;
 import static SimpleFlagCaptureRobot.RobotPlayer.moveTowardsGoal;
 import static SimpleFlagCaptureRobot.RobotPlayer.spawnRobotIfNeeded;
-import static SimpleFlagCaptureRobot.RobotPlayer.turnCount;
 
 public class SeekerService {
 
@@ -70,9 +66,7 @@ public class SeekerService {
                 e.printStackTrace();
             }
             finally {
-                Clock.yield();
-                turnCount += 1;
-            }
+                Clock.yield();}
         }
     }
 
@@ -146,7 +140,6 @@ public class SeekerService {
             } catch (GameActionException e) {
             } finally {
                 Clock.yield();
-                turnCount += 1;
             }
         }
     }
@@ -160,7 +153,6 @@ public class SeekerService {
             }
             finally {
                 Clock.yield();
-                turnCount += 1;
             }
         }
     }

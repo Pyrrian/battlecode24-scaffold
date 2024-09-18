@@ -10,7 +10,6 @@ import static SimpleFlagCaptureRobot.DirectionService.changeDirectionIfNeeded;
 import static SimpleFlagCaptureRobot.DirectionService.getRandomDirection;
 import static SimpleFlagCaptureRobot.DirectionService.moveToClosestLocation;
 import static SimpleFlagCaptureRobot.RobotPlayer.moveTowardsGoal;
-import static SimpleFlagCaptureRobot.RobotPlayer.turnCount;
 import static SimpleFlagCaptureRobot.Role.GATHERER;
 import static battlecode.common.GameConstants.VISION_RADIUS_SQUARED;
 
@@ -18,11 +17,11 @@ public class GatherService {
 
     public static void gatherBotLogic(RobotController rc) throws GameActionException {
         while (true) {
-            if (turnCount > 400) {
+            if (rc.getRoundNum() > 400) {
                 break;
             }
             try {
-                if (turnCount > 200) {
+                if (rc.getRoundNum() > 200) {
                     // If we have more than 20 gatherers, redetermine role.
                     int nGatherers = rc.readSharedArray(GATHERER.getIndex());
                     if (nGatherers > 20) {
@@ -39,7 +38,6 @@ public class GatherService {
 
             } finally {
                 Clock.yield();
-                turnCount += 1;
             }
         }
     }
