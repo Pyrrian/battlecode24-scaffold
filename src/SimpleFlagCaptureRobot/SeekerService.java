@@ -83,25 +83,13 @@ public class SeekerService {
                 rc.writeSharedArray(FLAG_CARRIER.getIndex(), Math.max(rc.readSharedArray(FLAG_CARRIER.getIndex()) - 1, 0));
                 return;
             }
-            rc.setIndicatorString("Role: " + role);
+            rc.setIndicatorString("Role: " + FLAG_CARRIER);
 
             try {
                 if (rc.isMovementReady()) {
-                    // If we are holding an enemy flag, singularly focus on moving towards
-                    // an ally spawn zone to capture it! We use the check roundNum >= SETUP_ROUNDS
-                    // to make sure setup phase has ended.
-                    if (rc.hasFlag() && rc.getRoundNum() >= GameConstants.SETUP_ROUNDS) {
-                        MapLocation[] spawnLocs = rc.getAllySpawnLocations();
-                        int distance = Integer.MAX_VALUE;
-                        MapLocation targetLocation = spawnLocs[0];
-                        for (MapLocation ml : spawnLocs) {
-                            if (rc.getLocation().distanceSquaredTo(ml) < distance) {
-                                distance = rc.getLocation().distanceSquaredTo(ml);
-                                targetLocation = ml;
-                            }
-                        }
-                        RobotPlayer.moveTowardsGoal(rc, targetLocation);
-                    }
+                   MapLocation[] spawnLocs = rc.getAllySpawnLocations();
+                   MapLocation closest = determineClosestLocationDirection(rc, spawnLocs, spawnLocs[0]);
+                   RobotPlayer.moveTowardsGoal(rc, closest);
                 } else {
                     if (!RobotPlayer.targetAndAttackEnemyBot(rc)) {
                         MapLocation[] spawnLocs = rc.getAllySpawnLocations();
