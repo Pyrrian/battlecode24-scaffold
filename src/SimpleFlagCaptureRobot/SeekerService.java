@@ -73,7 +73,7 @@ public class SeekerService {
 
         while (true) {
             if (!rc.hasFlag()) {
-                rc.writeSharedArray(FLAG_CARRIER.getIndex(), rc.readSharedArray(FLAG_CARRIER.getIndex()) - 1);
+                rc.writeSharedArray(FLAG_CARRIER.getIndex(), Math.max(rc.readSharedArray(FLAG_CARRIER.getIndex()) - 1, 0));
                 return;
             }
             rc.setIndicatorString("Role: " + role);

@@ -18,12 +18,15 @@ public class RoleService {
         int currentBattle = rc.readSharedArray(BATTLE.getIndex());
         int currentSeekers = rc.readSharedArray(SEEKER.getIndex());
 
-        if(rc.getRoundNum() <= 200) {
+        if(rc.getRoundNum() < 200) {
             return role;
         }
 
+        if (role != GATHERER) {
+            int n = 1;
+        }
         int nRoles = rc.readSharedArray(role.getIndex());
-        rc.writeSharedArray(role.getIndex(), nRoles - 1);
+        rc.writeSharedArray(role.getIndex(), Math.max(nRoles - 1, 0));
 
         if(rc.getRoundNum() <= 400) {
             // midgame roles

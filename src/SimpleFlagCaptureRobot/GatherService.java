@@ -28,8 +28,7 @@ public class GatherService {
                         // If we have more than 20 gatherers, redetermine role.
                         int nGatherers = rc.readSharedArray(GATHERER.getIndex());
                         if (nGatherers > 20) {
-                            rc.writeSharedArray(GATHERER.getIndex(), nGatherers - 1);
-                            break;
+                            return;
                         }
                     }
                     MapLocation[] crumbLocations = rc.senseNearbyCrumbs(VISION_RADIUS_SQUARED);
