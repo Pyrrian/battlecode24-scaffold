@@ -2,21 +2,26 @@ package SimpleFlagCaptureRobot;
 
 import battlecode.common.Clock;
 import battlecode.common.Direction;
+import battlecode.common.FlagInfo;
 import battlecode.common.GameActionException;
-import battlecode.common.MapInfo;
 import battlecode.common.MapLocation;
 import battlecode.common.RobotController;
 import battlecode.common.RobotInfo;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Random;
 import java.util.Set;
 
 import static SimpleFlagCaptureRobot.BattleService.battleBotLogic;
+import static SimpleFlagCaptureRobot.DirectionService.determineClosestLocationDirection;
+import static SimpleFlagCaptureRobot.DirectionService.getRandomDirection;
 import static SimpleFlagCaptureRobot.GatherService.gatherBotLogic;
 import static SimpleFlagCaptureRobot.RoleService.determineRole;
+import static SimpleFlagCaptureRobot.SeekerService.flagCarrierLogic;
 import static SimpleFlagCaptureRobot.SeekerService.flagSeekerLogic;
 import static battlecode.common.GameConstants.ATTACK_RADIUS_SQUARED;
+import static battlecode.common.GameConstants.VISION_RADIUS_SQUARED;
 
 /**
  * RobotPlayer is the class that describes your main robot strategy.
@@ -141,121 +146,145 @@ public strictfp class RobotPlayer {
         return false;
     }
 
-  private static void moveTowardsGoal(RobotController rc, Direction goal, String log) {
-    if(!rc.isMovementReady()) {
-      return;
+    private static void moveTowardsGoal(RobotController rc, Direction goal, String log) {
+        if (!rc.isMovementReady()) {
+            return;
+        }
+        try {
+            rc.move(goal);
+            lastLocation.add(rc.getLocation());
+            lastDirection = goal;
+        } catch (GameActionException gae) {
+        }
     }
-    try {
-      rc.move(goal);
-      lastLocation.add(rc.getLocation());
-      lastDirection = goal;
+
+    public static void moveTowardsGoal(RobotController rc, MapLocation goal) throws GameActionException {
+        Direction direction = weightedDirectionChoice(rc, goal);
+        moveTowardsGoal(rc, direction, "Move closest to goal");
     }
-    catch (GameActionException gae) {
-    }
-  }
 
-  public static void moveTowardsGoal(RobotController rc, MapLocation goal) throws GameActionException {
-    Direction direction = weightedDirectionChoice(rc, goal);
-    moveTowardsGoal(rc, direction, "Move closest to goal");
-  }
+    public static Direction weightedDirectionChoice(RobotController rc, MapLocation goal) throws GameActionException {
+        Direction bestDir = Direction.NORTH;
+        int maxPoints = 0;
+        Direction goalDirection = rc.getLocation().directionTo(goal);
 
-  public static Direction weightedDirectionChoice(RobotController rc, MapLocation goal) throws GameActionException {
-    Direction bestDir = Direction.NORTH;
-    int maxPoints = 0;
-    Direction goalDirection = rc.getLocation().directionTo(goal);
+        for (Direction dir : directions) {
+            int points = 0;
 
-    for(Direction dir : directions) {
-      int points = 0;
+            MapLocation targetLocation = rc.getLocation().add(dir);
 
-      MapLocation targetLocation = rc.getLocation().add(dir);
-
-        if (checkIfRobotIsAtLocation(rc, targetLocation)) {
-            points = Integer.MIN_VALUE;
-        }
-        if (!checkIfPassable(rc, targetLocation) && (!checkIfWater(rc, targetLocation))) {
-            points = Integer.MIN_VALUE;
-        }
-        if (checkIfWater(rc, targetLocation)) {
-            points -= 4;
-        }
-        if (dir.equals(goalDirection)) {
-            points += 7;
-        }
-        if (dir.equals(goalDirection.rotateLeft()) | dir.equals(goalDirection.rotateRight())) {
-            points += 5;
-        }
-        if (dir.equals(goalDirection.rotateLeft().rotateLeft()) | dir.equals(goalDirection.rotateRight().rotateRight())) {
-            points += 3;
-        }
-        if (dir.equals(goalDirection.rotateLeft().rotateLeft().rotateLeft()) | dir.equals(goalDirection.rotateRight().rotateRight().rotateRight())) {
-            points += 1;
-        }
-        if (checkIfPassable(rc, targetLocation.add(dir))) {
-            points += 2;
-            if (checkIfPassable(rc, targetLocation.add(dir).add(dir))) {
+            if (checkIfRobotIsAtLocation(rc, targetLocation)) {
+                points = Integer.MIN_VALUE;
+            }
+            if (!checkIfPassable(rc, targetLocation) && (!checkIfWater(rc, targetLocation))) {
+                points = Integer.MIN_VALUE;
+            }
+            if (checkIfWater(rc, targetLocation)) {
+                points -= 4;
+            }
+            if (dir.equals(goalDirection)) {
+                points += 7;
+            }
+            if (dir.equals(goalDirection.rotateLeft()) | dir.equals(goalDirection.rotateRight())) {
+                points += 5;
+            }
+            if (dir.equals(goalDirection.rotateLeft().rotateLeft()) | dir.equals(goalDirection.rotateRight().rotateRight())) {
+                points += 3;
+            }
+            if (dir.equals(goalDirection.rotateLeft().rotateLeft().rotateLeft()) | dir.equals(goalDirection.rotateRight().rotateRight().rotateRight())) {
+                points += 1;
+            }
+            if (checkIfPassable(rc, targetLocation.add(dir))) {
                 points += 2;
+                if (checkIfPassable(rc, targetLocation.add(dir).add(dir))) {
+                    points += 2;
+                }
+            }
+
+            if (lastDirection != null && dir.equals(lastDirection.opposite())) {
+                points -= 5;
+            }
+            if (lastLocation.contains(targetLocation)) {
+                points -= 5;
+            }
+            if (points > maxPoints) {
+                maxPoints = points;
+                bestDir = dir;
             }
         }
-
-        if (lastDirection != null && dir.equals(lastDirection.opposite())) {
-            points -= 5;
+        if (checkIfWater(rc, rc.getLocation().add(bestDir))) {
+            rc.fill(rc.getLocation().add(bestDir));
         }
-        if (lastLocation.contains(targetLocation)) {
-            points -= 5;
-        }
-        if (points > maxPoints) {
-            maxPoints = points;
-            bestDir = dir;
-        }
+        return bestDir;
     }
-    if (checkIfWater(rc, rc.getLocation().add(bestDir))) {
-        rc.fill(rc.getLocation().add(bestDir));
-    }
-    return bestDir;
-}
 
-private static boolean checkIfRobotIsAtLocation(RobotController rc, MapLocation location) {
-    try {
-        return rc.senseRobotAtLocation(location) != null;
-    } catch (GameActionException e) {
-        return false;
-    }
-}
-
-private static boolean checkIfPassable(RobotController rc, MapLocation location) {
-    try {
-        return rc.senseMapInfo(location)
-                .isPassable();
-    } catch (GameActionException e) {
-        return false;
-    }
-}
-
-private static boolean checkIfWater(RobotController rc, MapLocation location) {
-    try {
-        return rc.senseMapInfo(location)
-                .isWater();
-    } catch (GameActionException e) {
-        return false;
-    }
-}
-
-public static void updateEnemyRobots(RobotController rc) throws GameActionException {
-    // Sensing methods can be passed in a radius of -1 to automatically
-    // use the largest possible value.
-    RobotInfo[] enemyRobots = rc.senseNearbyRobots(-1, rc.getTeam().opponent());
-    if (enemyRobots.length != 0) {
-        rc.setIndicatorString("There are nearby enemy robots! Scary!");
-        // Save an array of locations with enemy robots in them for future use.
-        MapLocation[] enemyLocations = new MapLocation[enemyRobots.length];
-        for (int i = 0; i < enemyRobots.length; i++) {
-            enemyLocations[i] = enemyRobots[i].getLocation();
-        }
-        // Let the rest of our team know how many enemy robots we see!
-        if (rc.canWriteSharedArray(0, enemyRobots.length)) {
-            rc.writeSharedArray(0, enemyRobots.length);
-            int numEnemies = rc.readSharedArray(0);
+    private static boolean checkIfRobotIsAtLocation(RobotController rc, MapLocation location) {
+        try {
+            return rc.senseRobotAtLocation(location) != null;
+        } catch (GameActionException e) {
+            return false;
         }
     }
-}
+
+    private static boolean checkIfPassable(RobotController rc, MapLocation location) {
+        try {
+            return rc.senseMapInfo(location)
+                    .isPassable();
+        } catch (GameActionException e) {
+            return false;
+        }
+    }
+
+    private static boolean checkIfWater(RobotController rc, MapLocation location) {
+        try {
+            return rc.senseMapInfo(location)
+                    .isWater();
+        } catch (GameActionException e) {
+            return false;
+        }
+    }
+
+    public static void updateEnemyRobots(RobotController rc) throws GameActionException {
+        // Sensing methods can be passed in a radius of -1 to automatically
+        // use the largest possible value.
+        RobotInfo[] enemyRobots = rc.senseNearbyRobots(-1, rc.getTeam().opponent());
+        if (enemyRobots.length != 0) {
+            rc.setIndicatorString("There are nearby enemy robots! Scary!");
+            // Save an array of locations with enemy robots in them for future use.
+            MapLocation[] enemyLocations = new MapLocation[enemyRobots.length];
+            for (int i = 0; i < enemyRobots.length; i++) {
+                enemyLocations[i] = enemyRobots[i].getLocation();
+            }
+            // Let the rest of our team know how many enemy robots we see!
+            if (rc.canWriteSharedArray(0, enemyRobots.length)) {
+                rc.writeSharedArray(0, enemyRobots.length);
+                int numEnemies = rc.readSharedArray(0);
+            }
+        }
+    }
+
+    public static void performGenericAction(RobotController rc) throws GameActionException {
+        // stand on flag
+        if (rc.senseNearbyFlags(VISION_RADIUS_SQUARED, rc.getTeam().opponent()).length > 0) {
+            FlagInfo[] flags = rc.senseNearbyFlags(VISION_RADIUS_SQUARED, rc.getTeam().opponent());
+            ArrayList<MapLocation> flagLocations = new ArrayList<>();
+            for (FlagInfo flag : flags) {
+                flagLocations.add(flag.getLocation());
+            }
+            Direction direction = getRandomDirection(rc);
+            MapLocation location = determineClosestLocationDirection(rc, (MapLocation[]) flagLocations.toArray(), direction);
+            if (rc.canPickupFlag(location)) {
+                flagCarrierLogic(rc);
+
+            }
+            moveTowardsGoal(rc, location);
+
+        }
+        // pick up flag
+        // check specialization
+        // attack
+        // heal
+        // build
+
+    }
 }

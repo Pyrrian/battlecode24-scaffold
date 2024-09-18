@@ -14,6 +14,9 @@ import static SimpleFlagCaptureRobot.DirectionService.getRandomDirection;
 import static SimpleFlagCaptureRobot.RobotPlayer.moveTowardsGoal;
 import static SimpleFlagCaptureRobot.RobotPlayer.role;
 import static SimpleFlagCaptureRobot.RobotPlayer.spawnRobotIfNeeded;
+import static SimpleFlagCaptureRobot.Role.FLAG_CARRIER;
+import static SimpleFlagCaptureRobot.Role.FLAG_PROTECTOR;
+import static SimpleFlagCaptureRobot.RoleService.setRole;
 
 public class SeekerService {
 
@@ -23,20 +26,14 @@ public class SeekerService {
             rc.setIndicatorString("Role: " + role);
 
             try {
-                if(!spawnRobotIfNeeded(rc)) {
+                if (!spawnRobotIfNeeded(rc)) {
                     FlagInfo[] flags = rc.senseNearbyFlags(-1, rc.getTeam()
-                                                                 .opponent());
+                            .opponent());
                     if (flags.length != 0 && rc.canPickupFlag(rc.getLocation())) {
-                        rc.pickupFlag(rc.getLocation());
-                        rc.setIndicatorString("Holding a flag!");
-                        int seekers = rc.readSharedArray(Role.SEEKER.getIndex());
-                        rc.writeSharedArray(Role.SEEKER.getIndex(), seekers - 1);
-                        int flagCarriers = rc.readSharedArray(Role.FLAG_CARRIER.getIndex());
-                        rc.writeSharedArray(Role.FLAG_CARRIER.getIndex(), flagCarriers + 1);
                         flagCarrierLogic(rc);
                     }
 
-                    int flagCarriers = rc.readSharedArray(Role.FLAG_CARRIER.getIndex());
+                    int flagCarriers = rc.readSharedArray(FLAG_CARRIER.getIndex());
                     if (flagCarriers >= 3) {
                         int seekers = rc.readSharedArray(Role.SEEKER.getIndex());
                         rc.writeSharedArray(Role.SEEKER.getIndex(), seekers - 1);
@@ -46,7 +43,7 @@ public class SeekerService {
                     }
 
                     FlagInfo[] flagInfos = rc.senseNearbyFlags(20, rc.getTeam()
-                                                                     .opponent());
+                            .opponent());
                     if (flagInfos.length != 0) {
                         //Move towards enemy flag
                         for (FlagInfo flag : flagInfos) {
@@ -64,20 +61,29 @@ public class SeekerService {
                         moveTowardsGoal(rc, location);
                     }
                 }
-            }catch (Exception e) {
+            } catch (Exception e) {
                 System.out.println("GameActionException");
                 e.printStackTrace();
+            } finally {
+                Clock.yield();
             }
-            finally {
-                Clock.yield();}
         }
     }
 
-    private static void flagCarrierLogic(RobotController rc) {
-        while(true) {
+    public static void flagCarrierLogic(RobotController rc) throws GameActionException {
+        setRole(rc, FLAG_CARRIER);
+        rc.pickupFlag(rc.getLocation());
+        rc.setIndicatorString("Holding a flag!");
+        int seekers = rc.readSharedArray(Role.SEEKER.getIndex());
+        rc.writeSharedArray(Role.SEEKER.getIndex(), seekers - 1);
+        int flagCarriers = rc.readSharedArray(FLAG_CARRIER.getIndex());
+        rc.writeSharedArray(FLAG_CARRIER.getIndex(), flagCarriers + 1);
+
+        while (true) {
+            rc.setIndicatorString("Role: " + role);
 
             try {
-                if(rc.isMovementReady()) {
+                if (rc.isMovementReady()) {
                     // If we are holding an enemy flag, singularly focus on moving towards
                     // an ally spawn zone to capture it! We use the check roundNum >= SETUP_ROUNDS
                     // to make sure setup phase has ended.
@@ -85,23 +91,22 @@ public class SeekerService {
                         MapLocation[] spawnLocs = rc.getAllySpawnLocations();
                         int distance = Integer.MAX_VALUE;
                         MapLocation targetLocation = spawnLocs[0];
-                        for(MapLocation ml : spawnLocs) {
-                            if(rc.getLocation().distanceSquaredTo(ml) < distance) {
+                        for (MapLocation ml : spawnLocs) {
+                            if (rc.getLocation().distanceSquaredTo(ml) < distance) {
                                 distance = rc.getLocation().distanceSquaredTo(ml);
                                 targetLocation = ml;
                             }
                         }
                         RobotPlayer.moveTowardsGoal(rc, targetLocation);
                     }
-                }
-                else {
-                    if(!RobotPlayer.targetAndAttackEnemyBot(rc)) {
+                } else {
+                    if (!RobotPlayer.targetAndAttackEnemyBot(rc)) {
                         MapLocation[] spawnLocs = rc.getAllySpawnLocations();
                         MapLocation firstLoc = spawnLocs[0];
                         Direction dir = rc.getLocation()
-                                          .directionTo(firstLoc);
+                                .directionTo(firstLoc);
                         MapInfo mapInfo = rc.senseMapInfo(rc.getLocation().add(dir));
-                        if(mapInfo.isWater()) {
+                        if (mapInfo.isWater()) {
                             rc.fill(mapInfo.getMapLocation());
                         }
                     }
@@ -115,15 +120,16 @@ public class SeekerService {
         }
     }
 
-    private static void flagCarrierProtectorLogic(RobotController rc) {
-        while(true) {
-            rc.setIndicatorString("Role: " + "Flag Protector");
+    private static void flagCarrierProtectorLogic(RobotController rc) throws GameActionException {
+        setRole(rc, FLAG_PROTECTOR);
+
+        while (true) {
+            rc.setIndicatorString("Role: " + role);
 
             try {
                 //TODO
                 // Stay close to flag carrier, destroy enemy bots near. Fill holes around flag carrier.
-            }
-            finally {
+            } finally {
                 Clock.yield();
             }
         }

@@ -48,7 +48,7 @@ public class RoleService {
         }
     }
 
-    private static Role setRole(RobotController rc, Role newRole) throws GameActionException {
+    public static Role setRole(RobotController rc, Role newRole) throws GameActionException {
         int currentBots = rc.readSharedArray(newRole.getIndex()) + 1;
         rc.writeSharedArray(newRole.getIndex(), currentBots);
         role = newRole;
