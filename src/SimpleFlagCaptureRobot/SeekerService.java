@@ -30,10 +30,12 @@ public class SeekerService {
             try {
                 if (!spawnRobotIfNeeded(rc)) {
                     FlagInfo[] flags = rc.senseNearbyFlags(-1, rc.getTeam().opponent());
-                    if (flags.length != 0 && rc.canPickupFlag(rc.getLocation())) {
-                        rc.pickupFlag(rc.getLocation());
-                        flagCarrierLogic(rc);
-                        return;
+                    if (flags.length != 0) {
+                        for(FlagInfo flag : flags) {
+                            if(rc.canPickupFlag(flag.getLocation()) && !rc.hasFlag()) {
+                                rc.pickupFlag(flag.getLocation());
+                            }
+                        }
                     }
                     if(rc.hasFlag()) {
                         flagCarrierLogic(rc);

@@ -38,7 +38,6 @@ public class BattleService {
                     MapLocation location = determineClosestLocationDirection(rc, array, randomLocation);
                     if (rc.canAttack(location)) {
                         rc.attack(location);
-                        System.out.println("Take that! Damaged an enemy that was in our way!");
                     } else {
                         moveTowardsGoal(rc, location);
                     }
