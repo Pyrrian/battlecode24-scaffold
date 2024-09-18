@@ -54,7 +54,7 @@ public class BattleService {
                     }
                 }
             } catch (GameActionException e) {
-                throw new RuntimeException(e);
+
             } finally {
                 Clock.yield();
             }
