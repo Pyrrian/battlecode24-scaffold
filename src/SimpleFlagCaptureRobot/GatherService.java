@@ -85,26 +85,29 @@ public class GatherService {
 
                 if(rc.hasFlag()) {
                     Direction dir = whereIsX(rc);
-                    if (dir.equals(Direction.WEST)) {
-                        moveTowardsGoal(rc, new MapLocation(0, rc.getLocation().y));
-                    } else if (dir.equals(Direction.EAST)) {
-                        moveTowardsGoal(rc, new MapLocation(rc.getMapWidth(), rc.getLocation().y));
+                    if(!(rc.getLocation().x == 0) && !(rc.getLocation().x == rc.getMapWidth())) {
+                        if (dir.equals(Direction.WEST)) {
+                            moveTowardsGoal(rc, new MapLocation(0, rc.getLocation().y));
+                        } else if (dir.equals(Direction.EAST)) {
+                            moveTowardsGoal(rc, new MapLocation(rc.getMapWidth(), rc.getLocation().y));
+                        }
                     }
-                    FlagInfo[] flags = rc.senseNearbyFlags(36, rc.getTeam());
+                    FlagInfo[] flags = rc.senseNearbyFlags(10, rc.getTeam());
                     if(flags.length != 1) {
                         //Flags are too close. Move apart.
                         Direction moveAway = Direction.CENTER;
-
-                        for(FlagInfo flag : flags) {
-                            if(flag.getLocation().equals(rc.getLocation())) {
-                                continue;
+                        if(flags.length == 2) {
+                            for (FlagInfo flag : flags) {
+                                if (!flag.getLocation()
+                                         .equals(rc.getLocation())) {
+                                    moveAway = rc.getLocation()
+                                                 .directionTo(flag.getLocation())
+                                                 .opposite();
+                                }
                             }
-                            else {
-                                moveAway = rc.getLocation().directionTo(flag.getLocation()).opposite();
-                            }
+                            moveTowardsGoal(rc, rc.getLocation().add(moveAway).add(moveAway).add(moveAway).add(moveAway));
                         }
-                        moveTowardsGoal(rc, rc.getLocation().add(moveAway));
-
+                        moveTowardsGoal(rc, getRandomLocation(rc));
                     }
                     else {
                         if (!checkIfPassable(rc, rc.getLocation()

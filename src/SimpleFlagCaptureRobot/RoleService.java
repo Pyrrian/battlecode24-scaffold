@@ -46,8 +46,8 @@ public class RoleService {
         }
         else {
             // endgame roles
-            int seekers = 25;
-            int battle = 25;
+            int seekers = 35;
+            int battle = 15;
             if(currentSeekers < seekers) {
                 return setRole(rc, SEEKER);
             }

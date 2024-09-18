@@ -50,7 +50,7 @@ public strictfp class RobotPlayer {
      * import at the top of this file. Here, we *seed* the RNG with a constant number (6147); this makes sure
      * we get the same sequence of numbers every time this code is run. This is very useful for debugging!
      */
-    static final Random rng = new Random(6147);
+    static Random rng = new Random(6147);
 
     /**
      * Array containing all the possible movement directions.
@@ -78,6 +78,8 @@ public strictfp class RobotPlayer {
         if (rc.readSharedArray(GATHERER.getIndex()) == 0) {
             rc.writeSharedArray(GATHERER.getIndex(), 50);
         }
+
+        rng = new Random(rc.getID());
 
         while (true) {
             // This code runs during the entire lifespan of the robot, which is why it is in an infinite
