@@ -266,7 +266,7 @@ public strictfp class RobotPlayer {
                     bestDir = dir;
                 }
             }
-            if (checkIfWater(rc, rc.getLocation().add(bestDir))) {
+            if (checkIfWater(rc, rc.getLocation().add(bestDir)) && rc.canFill(rc.getLocation().add(bestDir))) {
                 rc.fill(rc.getLocation().add(bestDir));
             }
             return bestDir;
