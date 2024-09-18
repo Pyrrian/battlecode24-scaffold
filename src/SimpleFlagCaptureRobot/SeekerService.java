@@ -4,7 +4,6 @@ import battlecode.common.Clock;
 import battlecode.common.Direction;
 import battlecode.common.FlagInfo;
 import battlecode.common.GameActionException;
-import battlecode.common.GameConstants;
 import battlecode.common.MapInfo;
 import battlecode.common.MapLocation;
 import battlecode.common.RobotController;
@@ -16,9 +15,6 @@ import static SimpleFlagCaptureRobot.RobotPlayer.performGenericAction;
 import static SimpleFlagCaptureRobot.RobotPlayer.role;
 import static SimpleFlagCaptureRobot.RobotPlayer.spawnRobotIfNeeded;
 import static SimpleFlagCaptureRobot.Role.FLAG_CARRIER;
-import static SimpleFlagCaptureRobot.Role.FLAG_PROTECTOR;
-import static SimpleFlagCaptureRobot.RoleService.determineRole;
-import static SimpleFlagCaptureRobot.RoleService.setRole;
 
 public class SeekerService {
 

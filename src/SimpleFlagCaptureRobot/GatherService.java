@@ -7,6 +7,7 @@ import battlecode.common.GameActionException;
 import battlecode.common.MapInfo;
 import battlecode.common.MapLocation;
 import battlecode.common.RobotController;
+import battlecode.common.TrapType;
 
 import static SimpleFlagCaptureRobot.DirectionService.determineClosestLocationDirection;
 import static SimpleFlagCaptureRobot.DirectionService.getRandomLocation;
@@ -17,9 +18,12 @@ import static SimpleFlagCaptureRobot.RobotPlayer.role;
 import static SimpleFlagCaptureRobot.RobotPlayer.spawnRobotIfNeeded;
 import static SimpleFlagCaptureRobot.Role.FLAG_HIDER;
 import static SimpleFlagCaptureRobot.Role.GATHERER;
+import static battlecode.common.GameConstants.INTERACT_RADIUS_SQUARED;
 import static battlecode.common.GameConstants.VISION_RADIUS_SQUARED;
 
 public class GatherService {
+
+    private static boolean isDoneBuilding = true;
 
     public static void gatherBotLogic(RobotController rc) throws GameActionException {
         while (true) {
@@ -39,11 +43,14 @@ public class GatherService {
                             return;
                         }
                     }
-                    for(FlagInfo flag : flags) {
-                        if(rc.canPickupFlag(flag.getLocation()) && !flag.isPickedUp()) {
-                            rc.pickupFlag(flag.getLocation());
-                            doNastyFlagProtectionStuff(rc);
-                            //early game flag protection logic
+                    int flagCarriers = rc.readSharedArray(FLAG_HIDER.getIndex());
+                    if(flagCarriers < 10) {
+                        for (FlagInfo flag : flags) {
+                            if (rc.canPickupFlag(flag.getLocation()) && !flag.isPickedUp()) {
+                                rc.pickupFlag(flag.getLocation());
+                                doNastyFlagProtectionStuff(rc);
+                                //early game flag protection logic
+                            }
                         }
                     }
                     MapLocation[] crumbLocations = rc.senseNearbyCrumbs(VISION_RADIUS_SQUARED);
@@ -67,9 +74,13 @@ public class GatherService {
 
 
     private static void doNastyFlagProtectionStuff(RobotController rc) {
-        while(true) {
+        isDoneBuilding = false;
+        while(!isDoneBuilding) {
             rc.setIndicatorString("Role: " + FLAG_HIDER);
+
             try {
+                int flagCarriers = rc.readSharedArray(FLAG_HIDER.getIndex());
+                rc.writeSharedArray(FLAG_HIDER.getIndex(), flagCarriers + 1);
                 //First we move to edge of map
 
                 if(rc.hasFlag()) {
@@ -79,26 +90,48 @@ public class GatherService {
                     } else if (dir.equals(Direction.EAST)) {
                         moveTowardsGoal(rc, new MapLocation(rc.getMapWidth(), rc.getLocation().y));
                     }
+                    FlagInfo[] flags = rc.senseNearbyFlags(36, rc.getTeam());
+                    if(flags.length != 1) {
+                        //Flags are too close. Move apart.
+                        Direction moveAway = Direction.CENTER;
 
-                    if (!checkIfPassable(rc, rc.getLocation()
-                                               .add(dir))) {
-                        rc.dropFlag(rc.getLocation());
+                        for(FlagInfo flag : flags) {
+                            if(flag.getLocation().equals(rc.getLocation())) {
+                                continue;
+                            }
+                            else {
+                                moveAway = rc.getLocation().directionTo(flag.getLocation()).opposite();
+                            }
+                        }
+                        moveTowardsGoal(rc, rc.getLocation().add(moveAway));
+
+                    }
+                    else {
+                        if (!checkIfPassable(rc, rc.getLocation()
+                                                   .add(dir))) {
+                            rc.dropFlag(rc.getLocation());
+
+                        }
                     }
                 }
                 else {
-                    //MapInfo nearbyLocs = rc.senseNearbyMapInfos(2);
-
+                    MapInfo[] nearbyLocs = rc.senseNearbyMapInfos(INTERACT_RADIUS_SQUARED);
+                    boolean anyDiggableLocationsLeft = false;
+                    for(MapInfo loc : nearbyLocs) {
+                        if(loc.getMapLocation().equals(rc.getLocation()) || loc.isWater())
+                        {
+                            continue;
+                        }
+                        if(rc.canBuild(TrapType.WATER, loc.getMapLocation())) {
+                            rc.build(TrapType.WATER, loc.getMapLocation());
+                            anyDiggableLocationsLeft = true;
+                        }
+                    }
+                    if (!anyDiggableLocationsLeft) {
+                        //We need to suicide when done.
+                        isDoneBuilding = true;
+                    }
                 }
-
-                //we drop the flag
-
-                //Then we dig in around us.
-
-                //We need to suicide when done.
-
-
-
-
             }
             catch (GameActionException e) {
 
@@ -118,47 +151,5 @@ public class GatherService {
             return false;
         }
     }
-
-
-
-//    private static Direction directionToAllySpawnLocation(RobotController rc) {
-//        MapLocation[] loc = rc.getAllySpawnLocations();
-//        MapLocation closest = loc[0];
-//        int maxDistance = Integer.MAX_VALUE;
-//        for (MapLocation l : loc) {
-//            if (l.distanceSquaredTo(rc.getLocation()) < maxDistance) {
-//                maxDistance = l.distanceSquaredTo(rc.getLocation());
-//                closest = l;
-//            }
-//        }
-//        return rc.getLocation().directionTo(closest);
-//    }
-//
-//    private static Direction getCrumbDirection(RobotController rc) throws GameActionException {
-//        int radius = 1;
-//        MapLocation[] crumbs;
-//        do {
-//            crumbs = rc.senseNearbyCrumbs(radius);
-//            radius++;
-//        } while (crumbs.length == 0);
-//        return rc.getLocation().directionTo(crumbs[0]);
-//    }
-//
-//    private static Direction moveToMiddle(RobotController rc) throws GameActionException {
-//        Direction direction = directionToAllySpawnLocation(rc); // towards your own spawn location
-//        if (rc.senseMapInfo(rc.getLocation()).getTeamTerritory() == rc.getTeam()) { // if you're in your own territory
-//            direction = direction.opposite();
-//        }
-//        if (!isValidDirection(rc, direction)) {
-//            Direction[] directions = {direction.rotateLeft(), direction.rotateRight(), direction.rotateLeft().rotateLeft(), direction.rotateRight().rotateRight()};
-//            for (Direction dir : directions) {
-//                if (isValidDirection(rc, dir)) {
-//                    return dir;
-//                }
-//            }
-//            rc.fill(rc.getLocation().add(direction));
-//        }
-//        return direction;
-//    }
 
 }
