@@ -19,17 +19,19 @@ public class RoleService {
         int currentSeekers = rc.readSharedArray(SEEKER.getIndex());
 
         if(rc.getRoundNum() <= 200) {
-            //Mostly gather
-            int gatherers = 50;
-            return setRole(rc, GATHERER);
+            return role;
         }
-        else if(rc.getRoundNum() <= 400) {
+
+        int nRoles = rc.readSharedArray(role.getIndex());
+        rc.writeSharedArray(role.getIndex(), nRoles - 1);
+
+        if(rc.getRoundNum() <= 400) {
             // midgame roles
             int gatherers = 20;
             int seekers = 20;
             int battle = 10;
 
-            if (currentGathers < gatherers) {
+            if (currentGathers <= gatherers) {
                 return setRole(rc, GATHERER);
             }
             else if(currentSeekers < seekers) {

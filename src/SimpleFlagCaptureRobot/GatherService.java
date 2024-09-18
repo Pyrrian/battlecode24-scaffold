@@ -1,13 +1,12 @@
 package SimpleFlagCaptureRobot;
 
 import battlecode.common.Clock;
-import battlecode.common.Direction;
 import battlecode.common.GameActionException;
 import battlecode.common.MapLocation;
 import battlecode.common.RobotController;
 
 import static SimpleFlagCaptureRobot.DirectionService.determineClosestLocationDirection;
-import static SimpleFlagCaptureRobot.DirectionService.getRandomDirection;
+import static SimpleFlagCaptureRobot.DirectionService.getRandomLocation;
 import static SimpleFlagCaptureRobot.RobotPlayer.moveTowardsGoal;
 import static SimpleFlagCaptureRobot.RobotPlayer.role;
 import static SimpleFlagCaptureRobot.RobotPlayer.spawnRobotIfNeeded;
@@ -34,7 +33,7 @@ public class GatherService {
                         }
                     }
                     MapLocation[] crumbLocations = rc.senseNearbyCrumbs(VISION_RADIUS_SQUARED);
-                    MapLocation direction = getRandomDirection(rc);
+                    MapLocation direction = getRandomLocation(rc);
                     MapLocation location = determineClosestLocationDirection(rc, crumbLocations, direction);
                     moveTowardsGoal(rc, location);
                 }

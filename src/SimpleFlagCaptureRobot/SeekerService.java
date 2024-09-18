@@ -10,12 +10,14 @@ import battlecode.common.MapLocation;
 import battlecode.common.RobotController;
 
 import static SimpleFlagCaptureRobot.DirectionService.determineClosestLocationDirection;
-import static SimpleFlagCaptureRobot.DirectionService.getRandomDirection;
+import static SimpleFlagCaptureRobot.DirectionService.getRandomLocation;
 import static SimpleFlagCaptureRobot.RobotPlayer.moveTowardsGoal;
+import static SimpleFlagCaptureRobot.RobotPlayer.performGenericAction;
 import static SimpleFlagCaptureRobot.RobotPlayer.role;
 import static SimpleFlagCaptureRobot.RobotPlayer.spawnRobotIfNeeded;
 import static SimpleFlagCaptureRobot.Role.FLAG_CARRIER;
 import static SimpleFlagCaptureRobot.Role.FLAG_PROTECTOR;
+import static SimpleFlagCaptureRobot.RoleService.determineRole;
 import static SimpleFlagCaptureRobot.RoleService.setRole;
 
 public class SeekerService {
@@ -27,38 +29,32 @@ public class SeekerService {
 
             try {
                 if (!spawnRobotIfNeeded(rc)) {
-                    FlagInfo[] flags = rc.senseNearbyFlags(-1, rc.getTeam()
-                            .opponent());
+                    FlagInfo[] flags = rc.senseNearbyFlags(-1, rc.getTeam().opponent());
                     if (flags.length != 0 && rc.canPickupFlag(rc.getLocation())) {
                         flagCarrierLogic(rc);
+                        return;
                     }
 
                     int flagCarriers = rc.readSharedArray(FLAG_CARRIER.getIndex());
-                    if (flagCarriers >= 3) {
-                        int seekers = rc.readSharedArray(Role.SEEKER.getIndex());
-                        rc.writeSharedArray(Role.SEEKER.getIndex(), seekers - 1);
-                        int flagProtectors = rc.readSharedArray(Role.FLAG_PROTECTOR.getIndex());
-                        rc.writeSharedArray(Role.FLAG_PROTECTOR.getIndex(), flagProtectors + 1);
-                        flagCarrierProtectorLogic(rc);
-                    }
-
-                    FlagInfo[] flagInfos = rc.senseNearbyFlags(20, rc.getTeam()
-                            .opponent());
-                    if (flagInfos.length != 0) {
-                        //Move towards enemy flag
-                        for (FlagInfo flag : flagInfos) {
-                            if (flag.isPickedUp()) {
-                                continue;
+                    if (flagCarriers < 3) {
+                        if (flags.length != 0) {
+                            //Move towards enemy flag
+                            for (FlagInfo flag : flags) {
+                                if (flag.isPickedUp()) {
+                                    continue;
+                                }
+                                moveTowardsGoal(rc, flag.getLocation());
                             }
-                            moveTowardsGoal(rc, flag.getLocation());
                         }
-                    }
 
-                    if (rc.isMovementReady()) {
-                        Direction direction = getRandomDirection(rc);
-                        MapLocation[] broadcastFlags = rc.senseBroadcastFlagLocations();
-                        MapLocation location = determineClosestLocationDirection(rc, broadcastFlags, direction);
-                        moveTowardsGoal(rc, location);
+                        if (rc.isMovementReady()) {
+                            MapLocation direction = getRandomLocation(rc);
+                            MapLocation[] broadcastFlags = rc.senseBroadcastFlagLocations();
+                            MapLocation location = determineClosestLocationDirection(rc, broadcastFlags, direction);
+                            moveTowardsGoal(rc, location);
+                        }
+                    } else {
+                        performGenericAction(rc);
                     }
                 }
             } catch (Exception e) {
@@ -71,15 +67,15 @@ public class SeekerService {
     }
 
     public static void flagCarrierLogic(RobotController rc) throws GameActionException {
-        setRole(rc, FLAG_CARRIER);
         rc.pickupFlag(rc.getLocation());
-        rc.setIndicatorString("Holding a flag!");
-        int seekers = rc.readSharedArray(Role.SEEKER.getIndex());
-        rc.writeSharedArray(Role.SEEKER.getIndex(), seekers - 1);
         int flagCarriers = rc.readSharedArray(FLAG_CARRIER.getIndex());
         rc.writeSharedArray(FLAG_CARRIER.getIndex(), flagCarriers + 1);
 
         while (true) {
+            if (!rc.hasFlag()) {
+                rc.writeSharedArray(FLAG_CARRIER.getIndex(), rc.readSharedArray(FLAG_CARRIER.getIndex()) - 1);
+                return;
+            }
             rc.setIndicatorString("Role: " + role);
 
             try {
@@ -111,29 +107,10 @@ public class SeekerService {
                         }
                     }
                 }
-
-
             } catch (GameActionException e) {
             } finally {
                 Clock.yield();
             }
         }
     }
-
-    private static void flagCarrierProtectorLogic(RobotController rc) throws GameActionException {
-        setRole(rc, FLAG_PROTECTOR);
-
-        while (true) {
-            rc.setIndicatorString("Role: " + role);
-
-            try {
-                //TODO
-                // Stay close to flag carrier, destroy enemy bots near. Fill holes around flag carrier.
-            } finally {
-                Clock.yield();
-            }
-        }
-    }
-
-
 }

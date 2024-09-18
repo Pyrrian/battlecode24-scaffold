@@ -28,7 +28,7 @@ public class DirectionService {
         return direction;
     }
 
-    public static MapLocation getRandomDirection(RobotController rc) throws GameActionException {
+    public static MapLocation getRandomLocation(RobotController rc) throws GameActionException {
         MapInfo[] randomInfo = rc.senseNearbyMapInfos();
         ArrayList<MapInfo> emptySlots = new ArrayList<>();
         for(MapInfo info: randomInfo) {

@@ -15,9 +15,11 @@ import java.util.Set;
 
 import static SimpleFlagCaptureRobot.BattleService.battleBotLogic;
 import static SimpleFlagCaptureRobot.DirectionService.determineClosestLocationDirection;
-import static SimpleFlagCaptureRobot.DirectionService.getRandomDirection;
+import static SimpleFlagCaptureRobot.DirectionService.getRandomLocation;
 import static SimpleFlagCaptureRobot.GatherService.gatherBotLogic;
+import static SimpleFlagCaptureRobot.Role.GATHERER;
 import static SimpleFlagCaptureRobot.RoleService.determineRole;
+import static SimpleFlagCaptureRobot.RoleService.setRole;
 import static SimpleFlagCaptureRobot.SeekerService.flagCarrierLogic;
 import static SimpleFlagCaptureRobot.SeekerService.flagSeekerLogic;
 import static battlecode.common.GameConstants.ATTACK_RADIUS_SQUARED;
@@ -35,8 +37,6 @@ public strictfp class RobotPlayer {
      * You can use static variables like this to save any information you want. Keep in mind that even though
      * these variables are static, in Battlecode they aren't actually shared between your robots.
      */
-    static int turnCount = 0;
-
     static Role role = Role.GATHERER;
 
     static Set<MapLocation> lastLocation = new HashSet<>();
@@ -74,8 +74,10 @@ public strictfp class RobotPlayer {
      **/
     @SuppressWarnings("unused")
     public static void run(RobotController rc) throws GameActionException {
+        if (rc.readSharedArray(GATHERER.getIndex()) == 0) {
+            rc.writeSharedArray(GATHERER.getIndex(), 50);
+        }
 
-        turnCount += 1;
         while (true) {
             // This code runs during the entire lifespan of the robot, which is why it is in an infinite
             // loop. If we ever leave this loop and return from run(), the robot dies! At the end of the
@@ -264,27 +266,24 @@ public strictfp class RobotPlayer {
     }
 
     public static void performGenericAction(RobotController rc) throws GameActionException {
-        // stand on flag
         if (rc.senseNearbyFlags(VISION_RADIUS_SQUARED, rc.getTeam().opponent()).length > 0) {
             FlagInfo[] flags = rc.senseNearbyFlags(VISION_RADIUS_SQUARED, rc.getTeam().opponent());
             ArrayList<MapLocation> flagLocations = new ArrayList<>();
             for (FlagInfo flag : flags) {
                 flagLocations.add(flag.getLocation());
             }
-            Direction direction = getRandomDirection(rc);
-            MapLocation location = determineClosestLocationDirection(rc, (MapLocation[]) flagLocations.toArray(), direction);
+            MapLocation direction = getRandomLocation(rc);
+            MapLocation location = determineClosestLocationDirection(rc, flagLocations.toArray(new MapLocation[0]), direction);
             if (rc.canPickupFlag(location)) {
                 flagCarrierLogic(rc);
-
             }
             moveTowardsGoal(rc, location);
-
         }
         // pick up flag
         // check specialization
         // attack
-        // heal
-        // build
+        // heal (prefer flag carrier)
+        // build (traps around flag)
 
     }
 }

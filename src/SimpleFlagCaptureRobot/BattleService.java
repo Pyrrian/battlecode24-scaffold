@@ -1,16 +1,14 @@
 package SimpleFlagCaptureRobot;
 
 import battlecode.common.Clock;
-import battlecode.common.Direction;
 import battlecode.common.GameActionException;
 import battlecode.common.MapLocation;
 import battlecode.common.RobotController;
 import battlecode.common.RobotInfo;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 
-import static SimpleFlagCaptureRobot.DirectionService.getRandomDirection;
+import static SimpleFlagCaptureRobot.DirectionService.getRandomLocation;
 import static SimpleFlagCaptureRobot.DirectionService.determineClosestLocationDirection;
 import static SimpleFlagCaptureRobot.RobotPlayer.moveTowardsGoal;
 import static SimpleFlagCaptureRobot.RobotPlayer.role;
@@ -36,7 +34,7 @@ public class BattleService {
                         locations.add(info.getLocation());
                     }
                     MapLocation[] array = locations.toArray(new MapLocation[0]);
-                    MapLocation randomLocation = getRandomDirection(rc);
+                    MapLocation randomLocation = getRandomLocation(rc);
                     MapLocation location = determineClosestLocationDirection(rc, array, randomLocation);
                     if (rc.canAttack(location)) {
                         rc.attack(location);
