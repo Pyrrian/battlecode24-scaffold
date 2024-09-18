@@ -93,7 +93,7 @@ public class SeekerService {
                         Direction dir = rc.getLocation()
                                 .directionTo(firstLoc);
                         MapInfo mapInfo = rc.senseMapInfo(rc.getLocation().add(dir));
-                        if (mapInfo.isWater()) {
+                        if (mapInfo.isWater() && rc.canFill(mapInfo.getMapLocation())) {
                             rc.fill(mapInfo.getMapLocation());
                         }
                     }

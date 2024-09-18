@@ -10,7 +10,6 @@ import battlecode.common.RobotController;
 import battlecode.common.RobotInfo;
 import battlecode.common.SkillType;
 import battlecode.common.TrapType;
-import battlecode.world.Trap;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -215,58 +214,64 @@ public strictfp class RobotPlayer {
     }
 
     public static Direction weightedDirectionChoice(RobotController rc, MapLocation goal) throws GameActionException {
-        Direction bestDir = Direction.NORTH;
-        int maxPoints = 0;
-        Direction goalDirection = rc.getLocation().directionTo(goal);
+        if (rc.isMovementReady()) {
+            Direction bestDir = Direction.CENTER;
+            int maxPoints = -2000;
+            Direction goalDirection = rc.getLocation().directionTo(goal);
 
-        for (Direction dir : directions) {
-            int points = 0;
+            for (Direction dir : directions) {
+                int points = 0;
 
-            MapLocation targetLocation = rc.getLocation().add(dir);
+                MapLocation targetLocation = rc.getLocation().add(dir);
 
-            if (checkIfRobotIsAtLocation(rc, targetLocation)) {
-                points = Integer.MIN_VALUE;
-            }
-            if (!checkIfPassable(rc, targetLocation) && (!checkIfWater(rc, targetLocation))) {
-                points = Integer.MIN_VALUE;
-            }
-            if (checkIfWater(rc, targetLocation)) {
-                points -= 4;
-            }
-            if (dir.equals(goalDirection)) {
-                points += 7;
-            }
-            if (dir.equals(goalDirection.rotateLeft()) | dir.equals(goalDirection.rotateRight())) {
-                points += 5;
-            }
-            if (dir.equals(goalDirection.rotateLeft().rotateLeft()) | dir.equals(goalDirection.rotateRight().rotateRight())) {
-                points += 3;
-            }
-            if (dir.equals(goalDirection.rotateLeft().rotateLeft().rotateLeft()) | dir.equals(goalDirection.rotateRight().rotateRight().rotateRight())) {
-                points += 1;
-            }
-            if (checkIfPassable(rc, targetLocation.add(dir))) {
-                points += 2;
-                if (checkIfPassable(rc, targetLocation.add(dir).add(dir))) {
+                if (checkIfRobotIsAtLocation(rc, targetLocation)) {
+                    points = -1000;
+                }
+                if (!checkIfPassable(rc, targetLocation) && (!checkIfWater(rc, targetLocation))) {
+                    points = -1000;
+                }
+                if (checkIfWater(rc, targetLocation)) {
+                    points -= 4;
+                    if (!rc.canFill(rc.getLocation().add(bestDir))) {
+                        points -= 500;
+                    }
+                }
+                if (dir.equals(goalDirection)) {
+                    points += 7;
+                }
+                if (dir.equals(goalDirection.rotateLeft()) | dir.equals(goalDirection.rotateRight())) {
+                    points += 5;
+                }
+                if (dir.equals(goalDirection.rotateLeft().rotateLeft()) | dir.equals(goalDirection.rotateRight().rotateRight())) {
+                    points += 3;
+                }
+                if (dir.equals(goalDirection.rotateLeft().rotateLeft().rotateLeft()) | dir.equals(goalDirection.rotateRight().rotateRight().rotateRight())) {
+                    points += 1;
+                }
+                if (checkIfPassable(rc, targetLocation.add(dir))) {
                     points += 2;
+                    if (checkIfPassable(rc, targetLocation.add(dir).add(dir))) {
+                        points += 2;
+                    }
+                }
+
+                if (lastDirection != null && dir.equals(lastDirection.opposite())) {
+                    points -= 5;
+                }
+                if (lastLocation.contains(targetLocation)) {
+                    points -= 5;
+                }
+                if (points > maxPoints) {
+                    maxPoints = points;
+                    bestDir = dir;
                 }
             }
-
-            if (lastDirection != null && dir.equals(lastDirection.opposite())) {
-                points -= 5;
+            if (checkIfWater(rc, rc.getLocation().add(bestDir))) {
+                rc.fill(rc.getLocation().add(bestDir));
             }
-            if (lastLocation.contains(targetLocation)) {
-                points -= 5;
-            }
-            if (points > maxPoints) {
-                maxPoints = points;
-                bestDir = dir;
-            }
+            return bestDir;
         }
-        if (checkIfWater(rc, rc.getLocation().add(bestDir))) {
-            rc.fill(rc.getLocation().add(bestDir));
-        }
-        return bestDir;
+        return lastDirection.opposite();
     }
 
     private static boolean checkIfRobotIsAtLocation(RobotController rc, MapLocation location) {
