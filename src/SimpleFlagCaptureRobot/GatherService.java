@@ -5,11 +5,10 @@ import battlecode.common.Direction;
 import battlecode.common.GameActionException;
 import battlecode.common.MapLocation;
 import battlecode.common.RobotController;
-import battlecode.common.RobotInfo;
 
-import java.util.ArrayList;
-
-import static SimpleFlagCaptureRobot.RobotPlayer.isValidDirection;
+import static SimpleFlagCaptureRobot.DirectionService.changeDirectionIfNeeded;
+import static SimpleFlagCaptureRobot.DirectionService.getRandomDirection;
+import static SimpleFlagCaptureRobot.DirectionService.moveToClosestLocation;
 import static SimpleFlagCaptureRobot.RobotPlayer.moveTowardsGoal;
 import static SimpleFlagCaptureRobot.RobotPlayer.turnCount;
 import static SimpleFlagCaptureRobot.Role.GATHERER;
@@ -31,26 +30,10 @@ public class GatherService {
                         break;
                     }
                 }
-
-//                System.out.println("Gatherer logic - turn: " + turnCount);
-
-
                 MapLocation[] crumbLocations = rc.senseNearbyCrumbs(VISION_RADIUS_SQUARED);
                 Direction direction = getRandomDirection(rc);
-                direction = moveToCrumb(rc, crumbLocations, direction);
-                if (!isValidDirection(rc, direction)) {
-                    boolean isValid = false;
-                    Direction[] directions = {direction.rotateLeft(), direction.rotateRight(), direction.rotateLeft().rotateLeft(), direction.rotateRight().rotateRight()};
-                    for (Direction dir : directions) {
-                        if (isValidDirection(rc, dir)) {
-                            direction = dir;
-                            isValid = true;
-                        }
-                    }
-//                    if (!isValid) {
-//                        rc.fill(rc.getLocation().add(direction));
-//                    }
-                }
+                direction = moveToClosestLocation(rc, crumbLocations, direction);
+                direction = changeDirectionIfNeeded(rc, direction);
                 moveTowardsGoal(rc, direction, "Move towards crumb");
             } catch (Exception e) {
 
@@ -61,51 +44,7 @@ public class GatherService {
         }
     }
 
-    private static Direction moveToCrumb(RobotController rc, MapLocation[] crumbLocations, Direction direction) {
-        if (crumbLocations.length > 0) {
-            MapLocation closest = crumbLocations[0];
-            int maxDistance = Integer.MAX_VALUE;
-            for (MapLocation crumb : crumbLocations) {
-                if (crumb.distanceSquaredTo(rc.getLocation()) < maxDistance) {
-                    maxDistance = crumb.distanceSquaredTo(rc.getLocation());
-                    closest = crumb;
-                }
-            }
-            direction = rc.getLocation().directionTo(closest);
-        }
-        return direction;
-    }
 
-    private static Direction getRandomDirection(RobotController rc) {
-        ArrayList<Direction> directions = new ArrayList<>();
-        directions.add(whereIsX(rc).opposite());
-        directions.add(whereIsY(rc).opposite());
-        return directions.get((int) (Math.random() * 2));
-    }
-
-    private static Direction whereIsX(RobotController rc) {
-        // stel start: x=3,y=23 -> x=44, y=30 22
-
-        int x = rc.getLocation().x;
-        int half = rc.getMapWidth() / 2;
-        if (x > half) {
-            return Direction.EAST;
-        } else {
-            return Direction.WEST;
-        }
-    }
-
-    private static Direction whereIsY(RobotController rc) {
-        // stel start: x=3,y=23 -> x=44, y=30 22
-
-        int y = rc.getLocation().y;
-        int half = rc.getMapHeight() / 2;
-        if (y > half) {
-            return Direction.NORTH;
-        } else {
-            return Direction.SOUTH;
-        }
-    }
 
 
 
